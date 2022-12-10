@@ -59,6 +59,21 @@ impl Position {
     pub fn iter_to(&self, other: Position) -> PositionIter {
         PositionIter::new(*self, other)
     }
+
+    /// Create a Position from an index. This value might be the index for a 2D-matrix which is stored
+    /// in a 1D-array. Requires the width of the matrix.
+    pub fn from_index(index: usize, width: usize) -> Self {
+        Position::from((
+            index % width,
+            index / width,
+        ))
+    }
+
+    /// Creates an index for this position. This value might be the index for a 2D-matrix which is stored
+    /// in a 1D-array. Requires the width of the matrix.
+    pub fn to_index(&self, width: usize) -> usize {
+        self.y as usize * width + self.x as usize
+    }
 }
 
 impl Add for Position {
@@ -245,5 +260,30 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).collect::<Vec<_>>(), expected))
+    }
+
+    #[test]
+    fn from_index_works() {
+        let width = 10;
+        [
+            (22, Position::new(2, 2)),
+            (3, Position::new(3, 0)),
+            (30, Position::new(0, 3))
+        ]
+            .into_iter()
+            .for_each(|(index, expected)| assert_eq!(Position::from_index(index, width), expected))
+    }
+
+    #[test]
+    fn to_index_works() {
+        let width = 10;
+
+        [
+            (Position::new(2, 2), 22),
+            (Position::new(3, 0), 3),
+            (Position::new(0, 3), 30),
+        ]
+            .into_iter()
+            .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
     }
 }
