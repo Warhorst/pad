@@ -2,7 +2,7 @@ use std::ops::Add;
 use Direction::*;
 
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 pub struct Position {
     pub x: isize,
     pub y: isize,
@@ -17,7 +17,7 @@ impl Position {
     pub fn neighbours_in_bounds(&self, start: Position, end: Position) -> impl IntoIterator<Item=Position> {
         self.neighbours()
             .into_iter()
-            .filter(move |pos| *pos >= start && *pos <= end)
+            .filter(move |pos| pos.x >= start.x && pos.y >= start.y && pos.x <= end.x && pos.y <= end.y)
     }
 
     /// Return the neighbours in all four cardinal directions (up, down, left, right)
@@ -119,7 +119,7 @@ pub struct PositionIter {
 
 impl PositionIter {
     fn new(start: Position, end: Position) -> Self {
-        if start > end {
+        if start.x > end.x || start.y > end.y {
             panic!("start must be less or equal to end")
         }
 
@@ -239,6 +239,14 @@ mod tests {
         assert_eq!(neighbours.len(), 2);
         assert!(neighbours.contains(&Position::new(1, 2)));
         assert!(neighbours.contains(&Position::new(2, 1)));
+
+        let pos = Position::new(1, 0);
+        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
+
+        assert_eq!(neighbours.len(), 3);
+        assert!(neighbours.contains(&Position::new(0, 0)));
+        assert!(neighbours.contains(&Position::new(2, 0)));
+        assert!(neighbours.contains(&Position::new(1, 1)));
     }
 
     #[test]
