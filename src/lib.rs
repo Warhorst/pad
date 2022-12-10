@@ -14,20 +14,19 @@ impl Position {
     }
 
     /// Return only neighbours in cardinal directions which are in the given bounds.
-    pub fn neighbours_in_bounds(&self, start: Position, end: Position) -> impl IntoIterator<Item=Position> {
+    pub fn neighbours_in_bounds(&self, start: Position, end: Position) -> impl IntoIterator<Item=Neighbour> {
         self.neighbours()
             .into_iter()
-            .filter(move |pos| pos.x >= start.x && pos.y >= start.y && pos.x <= end.x && pos.y <= end.y)
+            .filter(move |neighbour| neighbour.position.x >= start.x
+                && neighbour.position.y >= start.y
+                && neighbour.position.x <= end.x
+                && neighbour.position.y <= end.y
+            )
     }
 
     /// Return the neighbours in all four cardinal directions (up, down, left, right)
-    pub fn neighbours(&self) -> [Position; 4] {
-        [
-            self.position_in_direction(Up),
-            self.position_in_direction(Down),
-            self.position_in_direction(Left),
-            self.position_in_direction(Right),
-        ]
+    pub fn neighbours(&self) -> [Neighbour; 4] {
+        [Up, Down, Left, Right].map(|dir| Neighbour::new(self.position_in_direction(dir), dir))
     }
 
     /// Return the position next to the current one in the given direction
@@ -73,6 +72,19 @@ impl Position {
     /// in a 1D-array. Requires the width of the matrix.
     pub fn to_index(&self, width: usize) -> usize {
         self.y as usize * width + self.x as usize
+    }
+}
+
+/// Represents an adjacent position in a specific direction.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct Neighbour {
+    pub position: Position,
+    pub direction: Direction,
+}
+
+impl Neighbour {
+    pub fn new(position: Position, direction: Direction) -> Self {
+        Self { position, direction }
     }
 }
 
@@ -170,7 +182,7 @@ pub enum Direction {
 
 #[cfg(test)]
 mod tests {
-    use crate::Position;
+    use crate::{Direction, Neighbour, Position};
     use crate::Direction::*;
 
     #[test]
@@ -208,10 +220,10 @@ mod tests {
         let neighbours = pos.neighbours();
 
         [
-            Position::new(0, 1),
-            Position::new(0, -1),
-            Position::new(-1, 0),
-            Position::new(1, 0),
+            Neighbour::new(Position::new(0, 1), Up),
+            Neighbour::new(Position::new(0, -1), Down),
+            Neighbour::new(Position::new(-1, 0), Left),
+            Neighbour::new(Position::new(1, 0), Right),
         ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
@@ -221,32 +233,32 @@ mod tests {
         let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 4);
-        assert!(neighbours.contains(&Position::new(2, 1)));
-        assert!(neighbours.contains(&Position::new(0, 1)));
-        assert!(neighbours.contains(&Position::new(1, 2)));
-        assert!(neighbours.contains(&Position::new(1, 0)));
+        assert!(neighbours.contains(&neigh(2, 1, Right)));
+        assert!(neighbours.contains(&neigh(0, 1, Left)));
+        assert!(neighbours.contains(&neigh(1, 2, Up)));
+        assert!(neighbours.contains(&neigh(1, 0, Down)));
 
         let pos = Position::new(0, 0);
         let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(1, 1)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 2);
-        assert!(neighbours.contains(&Position::new(1, 0)));
-        assert!(neighbours.contains(&Position::new(0, 1)));
+        assert!(neighbours.contains(&neigh(1, 0, Right)));
+        assert!(neighbours.contains(&neigh(0, 1, Up)));
 
         let pos = Position::new(2, 2);
         let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 2);
-        assert!(neighbours.contains(&Position::new(1, 2)));
-        assert!(neighbours.contains(&Position::new(2, 1)));
+        assert!(neighbours.contains(&neigh(1, 2, Left)));
+        assert!(neighbours.contains(&neigh(2, 1, Down)));
 
         let pos = Position::new(1, 0);
         let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 3);
-        assert!(neighbours.contains(&Position::new(0, 0)));
-        assert!(neighbours.contains(&Position::new(2, 0)));
-        assert!(neighbours.contains(&Position::new(1, 1)));
+        assert!(neighbours.contains(&neigh(0, 0, Left)));
+        assert!(neighbours.contains(&neigh(2, 0, Right)));
+        assert!(neighbours.contains(&neigh(1, 1, Up)));
     }
 
     #[test]
@@ -300,5 +312,9 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
+    }
+
+    fn neigh(x: isize, y: isize, dir: Direction) -> Neighbour {
+        Neighbour::new(Position::new(x, y), dir)
     }
 }
