@@ -232,6 +232,13 @@ mod tests {
         assert_eq!(neighbours.len(), 2);
         assert!(neighbours.contains(&Position::new(1, 0)));
         assert!(neighbours.contains(&Position::new(0, 1)));
+
+        let pos = Position::new(2, 2);
+        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
+
+        assert_eq!(neighbours.len(), 2);
+        assert!(neighbours.contains(&Position::new(1, 2)));
+        assert!(neighbours.contains(&Position::new(2, 1)));
     }
 
     #[test]
