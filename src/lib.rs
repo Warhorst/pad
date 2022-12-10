@@ -4,8 +4,8 @@ use Direction::*;
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Position {
-    x: isize,
-    y: isize,
+    pub x: isize,
+    pub y: isize,
 }
 
 impl Position {
