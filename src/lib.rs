@@ -122,6 +122,16 @@ impl From<(usize, usize)> for Position {
     }
 }
 
+/// Provides a quick way to create a Position from a given x and y value.
+/// x and y can be anything that can be converted to an isize and don't need to be of
+/// the same type.
+#[macro_export]
+macro_rules! p {
+    ($x:expr, $y:expr) => {
+        Position::new($x as isize, $y as isize)
+    };
+}
+
 pub struct PositionIter {
     current_x: isize,
     current_y: isize,
@@ -187,27 +197,27 @@ mod tests {
 
     #[test]
     fn add_position_works() {
-        let pos = Position::new(1, 2);
-        let other = Position::new(2, 3);
-        assert_eq!(Position::new(3, 5), pos + other);
+        let pos = p!(1, 2);
+        let other = p!(2, 3);
+        assert_eq!(p!(3, 5), pos + other);
     }
 
     #[test]
     fn add_tuple_works() {
-        let pos = Position::new(1, 2);
+        let pos = p!(1, 2);
         let other = (2, 3);
-        assert_eq!(Position::new(3, 5), pos + other);
+        assert_eq!(p!(3, 5), pos + other);
     }
 
     #[test]
     fn get_position_in_direction_works() {
-        let pos = Position::new(0, 0);
+        let pos = p!(0, 0);
 
         [
-            (Up, Position::new(0, 1)),
-            (Down, Position::new(0, -1)),
-            (Left, Position::new(-1, 0)),
-            (Right, Position::new(1, 0)),
+            (Up, p!(0, 1)),
+            (Down, p!(0, -1)),
+            (Left, p!(-1, 0)),
+            (Right, p!(1, 0)),
         ]
             .into_iter()
             .for_each(|(dir, expected)| assert_eq!(pos.position_in_direction(dir), expected))
@@ -215,22 +225,22 @@ mod tests {
 
     #[test]
     fn neighbours_works() {
-        let pos = Position::new(0, 0);
+        let pos = p!(0, 0);
 
         let neighbours = pos.neighbours();
 
         [
-            Neighbour::new(Position::new(0, 1), Up),
-            Neighbour::new(Position::new(0, -1), Down),
-            Neighbour::new(Position::new(-1, 0), Left),
-            Neighbour::new(Position::new(1, 0), Right),
+            Neighbour::new(p!(0, 1), Up),
+            Neighbour::new(p!(0, -1), Down),
+            Neighbour::new(p!(-1, 0), Left),
+            Neighbour::new(p!(1, 0), Right),
         ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
     fn neighbours_in_bounds_work() {
-        let pos = Position::new(1, 1);
-        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
+        let pos = p!(1, 1);
+        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 4);
         assert!(neighbours.contains(&neigh(2, 1, Right)));
@@ -238,22 +248,22 @@ mod tests {
         assert!(neighbours.contains(&neigh(1, 2, Up)));
         assert!(neighbours.contains(&neigh(1, 0, Down)));
 
-        let pos = Position::new(0, 0);
-        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(1, 1)).into_iter().collect::<Vec<_>>();
+        let pos = p!(0, 0);
+        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(1, 1)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 2);
         assert!(neighbours.contains(&neigh(1, 0, Right)));
         assert!(neighbours.contains(&neigh(0, 1, Up)));
 
-        let pos = Position::new(2, 2);
-        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
+        let pos = p!(2, 2);
+        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 2);
         assert!(neighbours.contains(&neigh(1, 2, Left)));
         assert!(neighbours.contains(&neigh(2, 1, Down)));
 
-        let pos = Position::new(1, 0);
-        let neighbours = pos.neighbours_in_bounds(Position::new(0, 0), Position::new(2, 2)).into_iter().collect::<Vec<_>>();
+        let pos = p!(1, 0);
+        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
 
         assert_eq!(neighbours.len(), 3);
         assert!(neighbours.contains(&neigh(0, 0, Left)));
@@ -265,23 +275,23 @@ mod tests {
     fn position_iter_works() {
         [
             (
-                Position::new(0, 0),
-                Position::new(0, 0),
-                vec![Position::new(0, 0)]
+                p!(0, 0),
+                p!(0, 0),
+                vec![p!(0, 0)]
             ),
             (
-                Position::new(-1, -1),
-                Position::new(1, 1),
+                p!(-1, -1),
+                p!(1, 1),
                 [(-1isize, -1isize), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)].into_iter().map(From::from).collect()
             ),
             (
-                Position::new(0, 0),
-                Position::new(2, 0),
+                p!(0, 0),
+                p!(2, 0),
                 [(0isize, 0isize), (1, 0), (2, 0)].into_iter().map(From::from).collect()
             ),
             (
-                Position::new(0, 0),
-                Position::new(0, 2),
+                p!(0, 0),
+                p!(0, 2),
                 [(0isize, 0isize), (0, 1), (0, 2)].into_iter().map(From::from).collect()
             )
         ]
@@ -293,9 +303,9 @@ mod tests {
     fn from_index_works() {
         let width = 10;
         [
-            (22, Position::new(2, 2)),
-            (3, Position::new(3, 0)),
-            (30, Position::new(0, 3))
+            (22, p!(2, 2)),
+            (3, p!(3, 0)),
+            (30, p!(0, 3))
         ]
             .into_iter()
             .for_each(|(index, expected)| assert_eq!(Position::from_index(index, width), expected))
@@ -306,15 +316,15 @@ mod tests {
         let width = 10;
 
         [
-            (Position::new(2, 2), 22),
-            (Position::new(3, 0), 3),
-            (Position::new(0, 3), 30),
+            (p!(2, 2), 22),
+            (p!(3, 0), 3),
+            (p!(0, 3), 30),
         ]
             .into_iter()
             .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
     }
 
     fn neigh(x: isize, y: isize, dir: Direction) -> Neighbour {
-        Neighbour::new(Position::new(x, y), dir)
+        Neighbour::new(p!(x, y), dir)
     }
 }
