@@ -13,35 +13,45 @@ impl Position {
         Position { x, y }
     }
 
-    /// Return only neighbours in cardinal directions which are in the given bounds.
-    pub fn neighbours_in_bounds(&self, start: Position, end: Position) -> impl IntoIterator<Item=Neighbour> {
-        self.neighbours()
-            .into_iter()
-            .filter(move |neighbour| neighbour.position.x >= start.x
-                && neighbour.position.y >= start.y
-                && neighbour.position.x <= end.x
-                && neighbour.position.y <= end.y
-            )
+    /// Return all neighbours of the given position
+    pub fn neighbours(&self) -> [Position; 8] {
+        Direction::all_directions().map(|dir| self.neighbour_in_direction(dir))
     }
 
     /// Return the neighbours in all four cardinal directions (up, down, left, right)
-    pub fn neighbours(&self) -> [Neighbour; 4] {
-        [Up, Down, Left, Right].map(|dir| Neighbour::new(self.position_in_direction(dir), dir))
+    pub fn cardinal_neighbours(&self) -> [Position; 4] {
+        Direction::cardinal_directions().map(|dir| self.neighbour_in_direction(dir))
     }
 
-    /// Return the position next to the current one in the given direction
-    ///
-    /// Interpretation of directions:
-    /// Right -> x gets higher
-    /// Left -> x gets lower
-    /// Up -> y gets higher
-    /// Down -> y gets lower
-    pub fn position_in_direction(&self, dir: Direction) -> Position {
+    /// Return all neighbours of the given position with the direction they are relative to the origin
+    pub fn neighbours_with_directions(&self) -> [(Position, Direction); 8] {
+        Direction::all_directions().map(|dir| (self.neighbour_in_direction(dir), dir))
+    }
+
+    /// Return the neighbours in all four cardinal directions (up, down, left, right)
+    /// with the direction they are relative to the origin
+    pub fn cardinal_neighbours_with_directions(&self) -> [(Position, Direction); 4] {
+        Direction::cardinal_directions().map(|dir| (self.neighbour_in_direction(dir), dir))
+    }
+
+    /// Return the position in the given direction next to this position
+    pub fn neighbour_in_direction(&self, dir: Direction) -> Position {
+        self.position_in_direction(dir, 1)
+    }
+
+    /// Return the position in the given direction in the given distance
+    pub fn position_in_direction(&self, dir: Direction, distance: usize) -> Position {
+        let distance = distance as isize;
+
         match dir {
-            Left => *self + (-1, 0),
-            Right => *self + (1, 0),
-            Up => *self + (0, 1),
-            Down => *self + (0, -1)
+            XP => *self + (distance, 0),
+            XM => *self + (-distance, 0),
+            YP => *self + (0, distance),
+            YM => *self + (0, -distance),
+            XPYP => *self + (distance, distance),
+            XPYM => *self + (distance, -distance),
+            XMYP => *self + (-distance, distance),
+            XMYM => *self + (-distance, -distance),
         }
     }
 
@@ -72,19 +82,6 @@ impl Position {
     /// in a 1D-array. Requires the width of the matrix.
     pub fn to_index(&self, width: usize) -> usize {
         self.y as usize * width + self.x as usize
-    }
-}
-
-/// Represents an adjacent position in a specific direction.
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct Neighbour {
-    pub position: Position,
-    pub direction: Direction,
-}
-
-impl Neighbour {
-    pub fn new(position: Position, direction: Direction) -> Self {
-        Self { position, direction }
     }
 }
 
@@ -182,17 +179,40 @@ impl Iterator for PositionIter {
     }
 }
 
+/// A direction along the x-axis, y-axis or both.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Direction {
-    Left,
-    Right,
-    Up,
-    Down,
+    /// x plus
+    XP,
+    /// x minus
+    XM,
+    /// y plus
+    YP,
+    /// y minus
+    YM,
+    /// x plus y plus
+    XPYP,
+    /// x plus y minus
+    XPYM,
+    /// x minus y plus
+    XMYP,
+    /// x minus y minus
+    XMYM,
+}
+
+impl Direction {
+    fn all_directions() -> [Direction; 8] {
+        [XP, XM, YP, YM, XPYP, XPYM, XMYP, XMYM]
+    }
+
+    fn cardinal_directions() -> [Direction; 4] {
+        [XP, XM, YP, YM]
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Direction, Neighbour, Position};
+    use crate::Position;
     use crate::Direction::*;
 
     #[test]
@@ -210,65 +230,104 @@ mod tests {
     }
 
     #[test]
-    fn get_position_in_direction_works() {
-        let pos = p!(0, 0);
-
-        [
-            (Up, p!(0, 1)),
-            (Down, p!(0, -1)),
-            (Left, p!(-1, 0)),
-            (Right, p!(1, 0)),
-        ]
-            .into_iter()
-            .for_each(|(dir, expected)| assert_eq!(pos.position_in_direction(dir), expected))
-    }
-
-    #[test]
     fn neighbours_works() {
         let pos = p!(0, 0);
 
         let neighbours = pos.neighbours();
 
         [
-            Neighbour::new(p!(0, 1), Up),
-            Neighbour::new(p!(0, -1), Down),
-            Neighbour::new(p!(-1, 0), Left),
-            Neighbour::new(p!(1, 0), Right),
+            p!(1, 0),
+            p!(-1, 0),
+            p!(0, 1),
+            p!(0, -1),
+            p!(1, 1),
+            p!(-1, 1),
+            p!(1, -1),
+            p!(-1, -1),
         ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
-    fn neighbours_in_bounds_work() {
-        let pos = p!(1, 1);
-        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
-
-        assert_eq!(neighbours.len(), 4);
-        assert!(neighbours.contains(&neigh(2, 1, Right)));
-        assert!(neighbours.contains(&neigh(0, 1, Left)));
-        assert!(neighbours.contains(&neigh(1, 2, Up)));
-        assert!(neighbours.contains(&neigh(1, 0, Down)));
-
+    fn cardinal_neighbours_works() {
         let pos = p!(0, 0);
-        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(1, 1)).into_iter().collect::<Vec<_>>();
 
-        assert_eq!(neighbours.len(), 2);
-        assert!(neighbours.contains(&neigh(1, 0, Right)));
-        assert!(neighbours.contains(&neigh(0, 1, Up)));
+        let neighbours = pos.cardinal_neighbours();
 
-        let pos = p!(2, 2);
-        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
+        [
+            p!(0, 1),
+            p!(0, -1),
+            p!(-1, 0),
+            p!(1, 0),
+        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+    }
 
-        assert_eq!(neighbours.len(), 2);
-        assert!(neighbours.contains(&neigh(1, 2, Left)));
-        assert!(neighbours.contains(&neigh(2, 1, Down)));
+    #[test]
+    fn neighbours_with_directions_works() {
+        let pos = p!(0, 0);
 
-        let pos = p!(1, 0);
-        let neighbours = pos.neighbours_in_bounds(p!(0, 0), p!(2, 2)).into_iter().collect::<Vec<_>>();
+        let neighbours = pos.neighbours_with_directions();
 
-        assert_eq!(neighbours.len(), 3);
-        assert!(neighbours.contains(&neigh(0, 0, Left)));
-        assert!(neighbours.contains(&neigh(2, 0, Right)));
-        assert!(neighbours.contains(&neigh(1, 1, Up)));
+        [
+            (p!(1, 0), XP),
+            (p!(-1, 0), XM),
+            (p!(0, 1), YP),
+            (p!(0, -1), YM),
+            (p!(1, 1), XPYP),
+            (p!(-1, 1), XMYP),
+            (p!(1, -1), XPYM),
+            (p!(-1, -1), XMYM),
+        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+    }
+
+    #[test]
+    fn cardinal_neighbours_with_directions_works() {
+        let pos = p!(0, 0);
+
+        let neighbours = pos.cardinal_neighbours_with_directions();
+
+        [
+            (p!(1, 0), XP),
+            (p!(-1, 0), XM),
+            (p!(0, 1), YP),
+            (p!(0, -1), YM),
+        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+    }
+
+    #[test]
+    fn position_in_direction_works() {
+        let pos = p!(0, 0);
+        let distance = 5;
+
+        [
+            (YP, p!(0, distance)),
+            (YM, p!(0, -distance)),
+            (XM, p!(-distance, 0)),
+            (XP, p!(distance, 0)),
+            (XPYP, p!(distance, distance)),
+            (XPYM, p!(distance, -distance)),
+            (XMYP, p!(-distance, distance)),
+            (XMYM, p!(-distance, -distance)),
+        ]
+            .into_iter()
+            .for_each(|(dir, expected)| assert_eq!(pos.position_in_direction(dir, distance as usize), expected))
+    }
+
+    #[test]
+    fn neighbour_in_direction_works() {
+        let pos = p!(0, 0);
+
+        [
+            (YP, p!(0, 1)),
+            (YM, p!(0, -1)),
+            (XM, p!(-1, 0)),
+            (XP, p!(1, 0)),
+            (XPYP, p!(1, 1)),
+            (XPYM, p!(1, -1)),
+            (XMYP, p!(-1, 1)),
+            (XMYM, p!(-1, -1)),
+        ]
+            .into_iter()
+            .for_each(|(dir, expected)| assert_eq!(pos.neighbour_in_direction(dir), expected))
     }
 
     #[test]
@@ -322,9 +381,5 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
-    }
-
-    fn neigh(x: isize, y: isize, dir: Direction) -> Neighbour {
-        Neighbour::new(p!(x, y), dir)
     }
 }
