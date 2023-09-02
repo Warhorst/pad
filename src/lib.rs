@@ -2,7 +2,7 @@ use std::ops::Add;
 use Direction::*;
 
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct Position {
     pub x: isize,
     pub y: isize,
