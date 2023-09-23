@@ -89,7 +89,7 @@ impl Position {
     /// A position is not neighboured with itself.
     pub fn is_neighbour_with(&self, other: &Position) -> bool {
         if self == other {
-            return false
+            return false;
         }
 
         let diff = *self - *other;
@@ -112,6 +112,22 @@ impl Position {
         let diff = *self - *other;
 
         diff.x.abs() == 1 && diff.y.abs() == 1
+    }
+
+    /// Return the direction the given neighbour is relative to this position.
+    /// None is returned if the positions are not neighboured or equals.
+    pub fn get_direction_to_neighbour(&self, other: &Position) -> Option<Direction> {
+        match (other.x - self.x, other.y - self.y) {
+            (1, 0) => Some(XP),
+            (0, 1) => Some(YP),
+            (-1, 0) => Some(XM),
+            (0, -1) => Some(YM),
+            (1, 1) => Some(XPYP),
+            (1, -1) => Some(XPYM),
+            (-1, 1) => Some(XMYP),
+            (-1, -1) => Some(XMYM),
+            _ => None
+        }
     }
 }
 
@@ -143,7 +159,7 @@ impl Sub for Position {
     fn sub(self, other: Self) -> Self::Output {
         Position::new(
             self.x - other.x,
-            self.y - other.y
+            self.y - other.y,
         )
     }
 }
@@ -259,6 +275,34 @@ impl Direction {
 
     fn cardinal_directions() -> [Direction; 4] {
         [XP, XM, YP, YM]
+    }
+
+    /// Get the direction vector of this direction as an isize tuple.
+    pub fn get_direction_vec(&self) -> (isize, isize) {
+        match self {
+            XP => (1, 0),
+            XM => (-1, 0),
+            YP => (0, 1),
+            YM => (0, -1),
+            XPYP => (1, 1),
+            XPYM => (1, -1),
+            XMYP => (-1, 1),
+            XMYM => (-1, -1)
+        }
+    }
+
+    /// Get the direction vector of this direction as a f32 tuple.
+    pub fn get_direction_vec_f32(&self) -> (f32, f32) {
+        match self {
+            XP => (1.0, 0.0),
+            XM => (-1.0, 0.0),
+            YP => (0.0, 1.0),
+            YM => (0.0, -1.0),
+            XPYP => (1.0, 1.0),
+            XPYM => (1.0, -1.0),
+            XMYP => (-1.0, 1.0),
+            XMYM => (-1.0, -1.0)
+        }
     }
 }
 
@@ -527,6 +571,33 @@ mod tests {
                 pos.is_diagonal_neighbour_with(&other),
                 expectation,
                 "{:?}.is_diagonal_neighbour_with({:?}) should be {}",
+                pos,
+                other,
+                expectation
+            ))
+    }
+
+    #[test]
+    fn get_direction_to_neighbour_works() {
+        let pos = p!(5, 5);
+
+        [
+            (p!(5, 5), None),
+            (p!(6, 5), Some(XP)),
+            (p!(4, 5), Some(XM)),
+            (p!(5, 6), Some(YP)),
+            (p!(5, 4), Some(YM)),
+            (p!(6, 6), Some(XPYP)),
+            (p!(6, 4), Some(XPYM)),
+            (p!(4, 6), Some(XMYP)),
+            (p!(4, 4), Some(XMYM)),
+            (p!(7, 5), None),
+        ]
+            .into_iter()
+            .for_each(|(other, expectation)| assert_eq!(
+                pos.get_direction_to_neighbour(&other),
+                expectation,
+                "{:?}.get_direction_to_neighbour({:?}) should be {:?}",
                 pos,
                 other,
                 expectation
