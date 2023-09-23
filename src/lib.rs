@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 use bevy_reflect::Reflect;
 use Direction::*;
 
@@ -84,6 +84,35 @@ impl Position {
     pub fn to_index(&self, width: usize) -> usize {
         self.y as usize * width + self.x as usize
     }
+
+    /// Tells if two positions are neighboured in any way.
+    /// A position is not neighboured with itself.
+    pub fn is_neighbour_with(&self, other: &Position) -> bool {
+        if self == other {
+            return false
+        }
+
+        let diff = *self - *other;
+        let range = -1..=1;
+
+        range.contains(&diff.x) && range.contains(&diff.y)
+    }
+
+    /// Tells if two positions are neighboured in cardinal directions
+    /// A position is not neighboured with itself.
+    pub fn is_cardinal_neighbour_with(&self, other: &Position) -> bool {
+        let diff = *self - *other;
+
+        diff.x.abs() == 1 && diff.y == 0 || diff.x == 0 && diff.y.abs() == 1
+    }
+
+    /// Tells if two positions are neighboured in diagonal directions
+    /// A position is not neighboured with itself.
+    pub fn is_diagonal_neighbour_with(&self, other: &Position) -> bool {
+        let diff = *self - *other;
+
+        diff.x.abs() == 1 && diff.y.abs() == 1
+    }
 }
 
 impl Add for Position {
@@ -104,6 +133,28 @@ impl Add<(isize, isize)> for Position {
         Position::new(
             self.x + x,
             self.y + y,
+        )
+    }
+}
+
+impl Sub for Position {
+    type Output = Position;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Position::new(
+            self.x - other.x,
+            self.y - other.y
+        )
+    }
+}
+
+impl Sub<(isize, isize)> for Position {
+    type Output = Position;
+
+    fn sub(self, (x, y): (isize, isize)) -> Self::Output {
+        Position::new(
+            self.x - x,
+            self.y - y,
         )
     }
 }
@@ -228,6 +279,20 @@ mod tests {
         let pos = p!(1, 2);
         let other = (2, 3);
         assert_eq!(p!(3, 5), pos + other);
+    }
+
+    #[test]
+    fn sup_position_works() {
+        let pos = p!(1, 2);
+        let other = p!(2, 3);
+        assert_eq!(p!(-1, -1), pos - other);
+    }
+
+    #[test]
+    fn sub_tuple_works() {
+        let pos = p!(1, 2);
+        let other = (2, 3);
+        assert_eq!(p!(-1, -1), pos - other);
     }
 
     #[test]
@@ -382,5 +447,89 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
+    }
+
+    #[test]
+    fn is_neighbour_with_work() {
+        let pos = p!(1, 1);
+
+        [
+            (p!(1, 1), false),
+            (p!(1, 2), true),
+            (p!(1, 0), true),
+            (p!(2, 1), true),
+            (p!(0, 1), true),
+            (p!(0, 0), true),
+            (p!(2, 2), true),
+            (p!(2, 0), true),
+            (p!(0, 2), true),
+            (p!(3, 1), false),
+            (p!(1, 3), false),
+        ]
+            .into_iter()
+            .for_each(|(other, expectation)| assert_eq!(
+                pos.is_neighbour_with(&other),
+                expectation,
+                "{:?}.is_neighbour_with({:?}) should be {}",
+                pos,
+                other,
+                expectation
+            ))
+    }
+
+    #[test]
+    fn is_cardinal_neighbour_with_works() {
+        let pos = p!(1, 1);
+
+        [
+            (p!(1, 1), false),
+            (p!(1, 2), true),
+            (p!(1, 0), true),
+            (p!(2, 1), true),
+            (p!(0, 1), true),
+            (p!(0, 0), false),
+            (p!(2, 2), false),
+            (p!(2, 0), false),
+            (p!(0, 2), false),
+            (p!(3, 1), false),
+            (p!(1, 3), false),
+        ]
+            .into_iter()
+            .for_each(|(other, expectation)| assert_eq!(
+                pos.is_cardinal_neighbour_with(&other),
+                expectation,
+                "{:?}.is_cardinal_neighbour_with({:?}) should be {}",
+                pos,
+                other,
+                expectation
+            ))
+    }
+
+    #[test]
+    fn is_diagonal_neighbour_with_works() {
+        let pos = p!(1, 1);
+
+        [
+            (p!(1, 1), false),
+            (p!(1, 2), false),
+            (p!(1, 0), false),
+            (p!(2, 1), false),
+            (p!(0, 1), false),
+            (p!(0, 0), true),
+            (p!(2, 2), true),
+            (p!(2, 0), true),
+            (p!(0, 2), true),
+            (p!(3, 1), false),
+            (p!(1, 3), false),
+        ]
+            .into_iter()
+            .for_each(|(other, expectation)| assert_eq!(
+                pos.is_diagonal_neighbour_with(&other),
+                expectation,
+                "{:?}.is_diagonal_neighbour_with({:?}) should be {}",
+                pos,
+                other,
+                expectation
+            ))
     }
 }
