@@ -1,9 +1,10 @@
 use std::ops::{Add, Sub};
 use bevy_reflect::Reflect;
+use serde::{Deserialize, Serialize};
 use Direction::*;
 
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Reflect)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize, Reflect)]
 pub struct Position {
     pub x: isize,
     pub y: isize,
@@ -248,7 +249,7 @@ impl Iterator for PositionIter {
 }
 
 /// A direction along the x-axis, y-axis or both.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Direction {
     /// x plus
     XP,
