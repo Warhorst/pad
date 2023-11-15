@@ -61,9 +61,11 @@ impl Position {
     ///
     /// The two positions form a square. For example (0,0) and (4,3) form the following shape
     ///
-    /// ``XXXX
-    /// XXXX
-    /// XXXX``
+    /// ```
+    /// // XXXX
+    /// // XXXX
+    /// // XXXX
+    /// ```
     ///
     /// The iterator takes every position from left to right and bottom to top. So the first element will be (0,0),
     /// followed by (1,0) until (3,0). Then (0,1), (1,1) and so on until (4,3) was returned
