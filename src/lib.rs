@@ -194,7 +194,10 @@ impl From<(usize, usize)> for Position {
 #[macro_export]
 macro_rules! p {
     ($x:expr, $y:expr) => {
-        Position::new($x as isize, $y as isize)
+        {
+            use $crate::Position;
+            Position::new($x as isize, $y as isize)
+        }
     };
 }
 
