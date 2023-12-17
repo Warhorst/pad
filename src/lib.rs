@@ -330,6 +330,20 @@ impl Direction {
         [XP, XM, YP, YM]
     }
 
+    /// Return the opposite direction of this direction
+    pub fn opposite(&self) -> Direction {
+        match self {
+            XP => XM,
+            XM => XP,
+            YP => YM,
+            YM => YP,
+            XPYP => XMYM,
+            XPYM => XMYP,
+            XMYP => XPYM,
+            XMYM => XPYP
+        }
+    }
+
     /// Get the direction vector of this direction as an isize tuple.
     pub fn get_direction_vec(&self) -> (isize, isize) {
         match self {
