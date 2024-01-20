@@ -134,6 +134,18 @@ impl Position {
         }
     }
 
+    /// Calculates the distance from this position to another one.
+    ///
+    /// Explanation: If the positions correlate to tiles on a board and you can take
+    /// steps from one position to a neighboured one, the distance is the minimum amount of
+    /// steps you need to make to reach the other position.
+    pub fn distance_to(&self, other: &Position) -> usize {
+        usize::max(
+            (self.x - other.x).abs() as usize,
+            (self.y - other.y).abs() as usize
+        )
+    }
+
     /// Converts Vec2 coordinates to a Position.
     ///
     /// Use case: The game world is a big plane, which is logically divided in tiles. Every tile has
@@ -670,6 +682,27 @@ mod tests {
                 other,
                 expectation
             ))
+    }
+
+    #[test]
+    fn distance_to_works() {
+        [
+            (p!(0,0), p!(0, 0), 0),
+            (p!(0,0), p!(1, 1), 1),
+            (p!(0,0), p!(3, 1), 3),
+            (p!(0,0), p!(3, 3), 3),
+            (p!(0,0), p!(-3, -3), 3),
+        ]
+            .into_iter()
+            .for_each(|(a, b, expectation)| assert_eq!(
+                a.distance_to(&b),
+                expectation,
+                "{:?}.distance_to({:?}) should be {}",
+                a,
+                b,
+                expectation
+            ))
+        ;
     }
 
     #[test]
