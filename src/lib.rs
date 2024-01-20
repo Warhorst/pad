@@ -134,6 +134,24 @@ impl Position {
         }
     }
 
+    /// Calculates the manhattan distance between this position and another one (https://en.wikipedia.org/wiki/Taxicab_geometry)
+    pub fn manhattan_distance(&self, other: &Position) -> f32 {
+        if self == other {
+            return 0.0
+        }
+
+        self.x.abs_diff(other.x) as f32 + self.y.abs_diff(other.y) as f32
+    }
+
+    /// Calculates the euclidean distance between this position and another one (https://en.wikipedia.org/wiki/Euclidean_distance)
+    pub fn euclidean_distance(&self, other: &Position) -> f32 {
+        if self == other {
+            return 0.0
+        }
+
+        (self.x.abs_diff(other.x).pow(2) as f32 + self.y.abs_diff(other.y).pow(2) as f32).sqrt()
+    }
+
     /// Calculates the distance from this position to another one.
     ///
     /// Explanation: If the positions correlate to tiles on a board and you can take
@@ -713,7 +731,7 @@ mod tests {
             (Vec2::new(0.0, 0.0), Position::new(0, 0)),
             (Vec2::new(dimension / 2.0, dimension / 2.0), Position::new(0, 0)),
             (Vec2::new(dimension, dimension), Position::new(1, 1)),
-            (Vec2::new(- dimension / 2.0, - dimension / 2.0), Position::new(-1, -1)),
+            (Vec2::new(-dimension / 2.0, -dimension / 2.0), Position::new(-1, -1)),
         ];
 
         values_and_expectation
