@@ -209,6 +209,114 @@ impl Position {
     pub fn to_vec3(&self, dimension: Vec2, z: f32) -> Vec3 {
         Vec3::from((self.to_vec2(dimension), z))
     }
+
+    /// Returns an iterator over all positions in the line between self and goal,
+    /// including self and goal. Uses Bresenham's line algorithm.
+    pub fn line_to(&self, goal: Position) -> impl IntoIterator<Item=Position> {
+        // stolen from wikipedia
+
+        let mut positions = vec![];
+
+        let (dx, dy) = (goal.x - self.x, goal.y - self.y);
+        let mut current = *self;
+
+        positions.push(current);
+
+        let mut error = dx / 2;
+
+        while current.x < goal.x {
+            current.x += 1;
+            error -= dy;
+
+            if error < 0 {
+                current.y += 1;
+                error += dx;
+            }
+
+            positions.push(current)
+        }
+
+        positions
+    }
+
+    /// Return an iterator over all positions in the circle around self with the given radius.
+    /// Uses an adapted version of Bresenham's line algorithm.
+    pub fn circle(&self, radius: usize) -> impl IntoIterator<Item=Position> {
+        // stolen from wikipedia
+
+        // conversion to isize, so we don't have to cast everywhere
+        let radius = radius as isize;
+
+        let mut positions = vec![];
+
+        let mut f = 1 - radius;
+        let mut ddf_x = 0isize;
+        let mut ddf_y = -2 * radius;
+        let mut x = 0;
+        let mut y = radius;
+
+        positions.push(p!(self.x, self.y + radius));
+        positions.push(p!(self.x, self.y - radius));
+        positions.push(p!(self.x + radius, self.y));
+        positions.push(p!(self.x - radius, self.y));
+
+        while x < y {
+            if f >= 0 {
+                y -= 1;
+                ddf_y += 2;
+                f += ddf_y;
+            }
+
+            x += 1;
+            ddf_x += 2;
+            f += ddf_x + 1;
+
+            positions.push(p!(self.x + x, self.y + y));
+            positions.push(p!(self.x - x, self.y + y));
+            positions.push(p!(self.x + x, self.y - y));
+            positions.push(p!(self.x - x, self.y - y));
+            positions.push(p!(self.x + y, self.y + x));
+            positions.push(p!(self.x - y, self.y + x));
+            positions.push(p!(self.x + y, self.y - x));
+            positions.push(p!(self.x - y, self.y - x));
+        }
+
+        positions
+    }
+
+    /// Prints a simple representation of the given positions to the terminal.
+    /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
+    pub fn print_positions(positions: impl IntoIterator<Item=Position>) {
+        let positions = positions.into_iter().collect::<Vec<_>>();
+
+        let min_x = positions.iter().map(|p| p.x).min().expect("at least one position must be given");
+        let min_y = positions.iter().map(|p| p.y).min().expect("at least one position must be given");
+        let max_x = positions.iter().map(|p| p.x).max().expect("at least one position must be given");
+        let max_y = positions.iter().map(|p| p.y).max().expect("at least one position must be given");
+
+        let x_axis = (min_x..=max_x)
+            .into_iter()
+            .fold(String::new(), |mut acc, item| {
+                acc += format!(" {}", item.abs()).as_str();
+                acc
+            });
+
+        println!(" {x_axis}");
+
+        for y in (min_y..=max_y).rev() {
+            print!("{} ", y.abs());
+            for x in min_x..=max_x {
+                if positions.contains(&p!(x, y)) {
+                    print!("X ");
+                } else {
+                    print!("  ");
+                }
+            }
+            println!("{} ", y.abs());
+        }
+
+        println!(" {x_axis}");
+    }
 }
 
 impl Add for Position {
@@ -737,5 +845,54 @@ mod tests {
         values_and_expectation
             .into_iter()
             .for_each(|(val, expected)| assert_eq!(Position::from_vec2(val, Vec2::splat(dimension)), expected));
+    }
+
+    #[test]
+    fn line_to_works() {
+        let start = p!(0, 0);
+        let goal = p!(6, 2);
+
+        let positions = start.line_to(goal).into_iter().collect::<Vec<_>>();
+        assert_eq!(positions.len(), 7);
+
+        let expected = [
+            p!(0, 0),
+            p!(1, 0),
+            p!(2, 1),
+            p!(3, 1),
+            p!(4, 1),
+            p!(5, 2),
+            p!(6, 2),
+        ];
+
+        assert_eq!(positions.len(), expected.len());
+
+        for pos in expected {
+            assert!(positions.contains(&pos), "expected position not in output: {:?}", pos);
+        }
+    }
+
+    #[test]
+    fn circle_works() {
+        let origin = p!(0, 0);
+        let radius = 4;
+
+        let positions = origin.circle(radius);
+
+        // no asserts, as this would be to cumbersome
+        // just make sure it doesn't crash and print to make sure it looks nice
+        Position::print_positions(positions);
+    }
+
+    #[test]
+    fn print_positions_works() {
+        let positions = [
+            p!(-2, -2),
+            p!(-3, -2),
+            p!(0, 0),
+            p!(3, 3)
+        ];
+
+        Position::print_positions(positions);
     }
 }
