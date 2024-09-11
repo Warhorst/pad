@@ -285,6 +285,36 @@ impl Position {
         positions
     }
 
+    /// Return an iterator over all positions in a filled circle around this position
+    /// with the given radius.
+    pub fn circle_filled(&self, radius: usize) -> impl IntoIterator<Item=Position> {
+        // taken from http://fredericgoset.ovh/mathematiques/courbes/en/filled_circle.html
+        // I absolutely don't understand this, but it does work
+        let radius = radius as isize;
+        let mut positions = vec![];
+
+        let mut x = 0;
+        let mut y = radius;
+        let mut m = 5 - 4 * radius;
+
+        while x <= y {
+            positions.extend(p!(self.x - x, self.y - y).line_to(p!(self.x + x, self.y - y)));
+            positions.extend(p!(self.x - y, self.y - x).line_to(p!(self.x + y, self.y - x)));
+            positions.extend(p!(self.x - y, self.y + x).line_to(p!(self.x + y, self.y + x)));
+            positions.extend(p!(self.x - x, self.y + y).line_to(p!(self.x + x, self.y + y)));
+
+            if m > 0 {
+                y -= 1;
+                m -= 8 * y;
+            }
+
+            x += 1;
+            m += 8 * x + 4;
+        }
+
+        positions
+    }
+
     /// Prints a simple representation of the given positions to the terminal.
     /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
     pub fn print_positions(positions: impl IntoIterator<Item=Position>) {
@@ -912,6 +942,15 @@ mod tests {
         for pos in expected {
             assert!(positions.contains(&pos), "expected position not in output: {:?}", pos);
         }
+    }
+
+    #[test]
+    fn circle_filled_works() {
+        let origin = p!(0, 0);
+        let radius = 5;
+
+        Position::print_positions(origin.circle(radius));
+        Position::print_positions(origin.circle_filled(radius));
     }
 
     #[test]
