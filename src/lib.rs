@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::{Add, Sub};
 use bevy_math::*;
 use bevy_reflect::Reflect;
@@ -247,7 +248,7 @@ impl Position {
         // conversion to isize, so we don't have to cast everywhere
         let radius = radius as isize;
 
-        let mut positions = vec![];
+        let mut positions = HashSet::new();
 
         let mut f = 1 - radius;
         let mut ddf_x = 0isize;
@@ -255,10 +256,10 @@ impl Position {
         let mut x = 0;
         let mut y = radius;
 
-        positions.push(p!(self.x, self.y + radius));
-        positions.push(p!(self.x, self.y - radius));
-        positions.push(p!(self.x + radius, self.y));
-        positions.push(p!(self.x - radius, self.y));
+        positions.insert(p!(self.x, self.y + radius));
+        positions.insert(p!(self.x, self.y - radius));
+        positions.insert(p!(self.x + radius, self.y));
+        positions.insert(p!(self.x - radius, self.y));
 
         while x < y {
             if f >= 0 {
@@ -271,14 +272,14 @@ impl Position {
             ddf_x += 2;
             f += ddf_x + 1;
 
-            positions.push(p!(self.x + x, self.y + y));
-            positions.push(p!(self.x - x, self.y + y));
-            positions.push(p!(self.x + x, self.y - y));
-            positions.push(p!(self.x - x, self.y - y));
-            positions.push(p!(self.x + y, self.y + x));
-            positions.push(p!(self.x - y, self.y + x));
-            positions.push(p!(self.x + y, self.y - x));
-            positions.push(p!(self.x - y, self.y - x));
+            positions.insert(p!(self.x + x, self.y + y));
+            positions.insert(p!(self.x - x, self.y + y));
+            positions.insert(p!(self.x + x, self.y - y));
+            positions.insert(p!(self.x - x, self.y - y));
+            positions.insert(p!(self.x + y, self.y + x));
+            positions.insert(p!(self.x - y, self.y + x));
+            positions.insert(p!(self.x + y, self.y - x));
+            positions.insert(p!(self.x - y, self.y - x));
         }
 
         positions
@@ -877,11 +878,40 @@ mod tests {
         let origin = p!(0, 0);
         let radius = 4;
 
-        let positions = origin.circle(radius);
+        let positions = origin.circle(radius).into_iter().collect::<Vec<_>>();
 
-        // no asserts, as this would be to cumbersome
-        // just make sure it doesn't crash and print to make sure it looks nice
-        Position::print_positions(positions);
+        let expected = [
+            p!(-2, -3),
+            p!(1, -4),
+            p!(-1, -4),
+            p!(4, -1),
+            p!(2, -3),
+            p!(-3, -3),
+            p!(0, 4),
+            p!(-4, 0),
+            p!(-2, 3),
+            p!(-3, 2),
+            p!(3, -2),
+            p!(-1, 4),
+            p!(3, 3),
+            p!(-4, -1),
+            p!(-3, 3),
+            p!(4, 0),
+            p!(3, -3),
+            p!(1, 4),
+            p!(-4, 1),
+            p!(2, 3),
+            p!(3, 2),
+            p!(-3, -2),
+            p!(0, -4),
+            p!(4, 1),
+        ];
+
+        assert_eq!(expected.len(), positions.len());
+
+        for pos in expected {
+            assert!(positions.contains(&pos), "expected position not in output: {:?}", pos);
+        }
     }
 
     #[test]
