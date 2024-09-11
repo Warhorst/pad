@@ -214,6 +214,8 @@ impl Position {
     /// Returns an iterator over all positions in the line between self and goal,
     /// including self and goal. Uses Bresenham's line algorithm.
     pub fn line_to(&self, goal: Position) -> impl IntoIterator<Item=Position> {
+        // todo slow due to allocations, refactor to iterator
+
         // stolen from wikipedia
 
         let mut positions = vec![];
@@ -243,6 +245,8 @@ impl Position {
     /// Return an iterator over all positions in the circle around self with the given radius.
     /// Uses an adapted version of Bresenham's line algorithm.
     pub fn circle(&self, radius: usize) -> impl IntoIterator<Item=Position> {
+        // todo slow due to allocations, refactor to iterator
+
         // stolen from wikipedia
 
         // conversion to isize, so we don't have to cast everywhere
@@ -288,7 +292,9 @@ impl Position {
     /// Return an iterator over all positions in a filled circle around this position
     /// with the given radius.
     pub fn circle_filled(&self, radius: usize) -> impl IntoIterator<Item=Position> {
-        // taken from http://fredericgoset.ovh/mathematiques/courbes/en/filled_circle.html
+        // todo slow due to allocations, refactor to iterator
+
+        // source http://fredericgoset.ovh/mathematiques/courbes/en/filled_circle.html
         // I absolutely don't understand this, but it does work
         let radius = radius as isize;
         let mut positions = vec![];
