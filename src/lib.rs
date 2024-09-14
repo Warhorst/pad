@@ -1,12 +1,18 @@
 use std::collections::HashSet;
 use std::ops::{Add, Sub};
-use bevy_math::*;
-use bevy_reflect::Reflect;
-use serde::{Deserialize, Serialize};
+
 use Direction::*;
+#[cfg(feature = "bevy")]
+use bevy_math::*;
+#[cfg(feature = "bevy")]
+use bevy_reflect::Reflect;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize, Deserialize, Reflect)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[cfg_attr(feature = "bevy", derive(Reflect))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Position {
     pub x: isize,
     pub y: isize,
@@ -170,6 +176,7 @@ impl Position {
     /// Use case: The game world is a big plane, which is logically divided in tiles. Every tile has
     /// the same dimension, and every tile has a unique position. The goal is to get the position
     /// the given coordinates are in.
+    #[cfg(feature = "bevy")]
     pub fn from_vec2(coordinates: Vec2, dimension: Vec2) -> Self {
         let mut x_div = coordinates.x / dimension.x;
         let mut y_div = coordinates.y / dimension.y;
@@ -189,6 +196,7 @@ impl Position {
     }
 
     /// Same as from_vec2, but for Vec3 coordinates instead.
+    #[cfg(feature = "bevy")]
     pub fn from_vec3(coordinates: Vec3, dimension: Vec2) -> Self {
         Position::from_vec2(coordinates.xy(), dimension)
     }
@@ -198,6 +206,7 @@ impl Position {
     /// Use case: The game world is a big plane, which is logically divided in tiles. Every tile has
     /// the same dimension, and every tile has a unique position. The goal is to get the corner coordinates
     /// for the tile at this position.
+    #[cfg(feature = "bevy")]
     pub fn to_vec2(&self, dimension: Vec2) -> Vec2 {
         Vec2::new(
             self.x as f32 * dimension.x,
@@ -207,6 +216,7 @@ impl Position {
 
     /// Same as to_vec2, but for Vec3 coordinates. As the Vec3 also needs a z coordinate, it is provided as
     /// a parameter.
+    #[cfg(feature = "bevy")]
     pub fn to_vec3(&self, dimension: Vec2, z: f32) -> Vec3 {
         Vec3::from((self.to_vec2(dimension), z))
     }
@@ -476,7 +486,9 @@ impl Iterator for PositionIter {
 }
 
 /// A direction along the x-axis, y-axis or both.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "bevy", derive(Reflect))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Direction {
     /// x plus
     XP,
@@ -550,6 +562,7 @@ impl Direction {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "bevy")]
     use bevy_math::Vec2;
     use crate::Position;
     use crate::Direction::*;
@@ -869,6 +882,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "bevy")]
     fn from_vec2_works() {
         let dimension = 32.0;
 
