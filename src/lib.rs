@@ -349,7 +349,7 @@ impl PositionPrinter {
 
         PositionPrinter {
             position_mapping: default_mapping,
-            draw_axis: true
+            draw_axis: true,
         }
     }
 
@@ -364,6 +364,8 @@ impl PositionPrinter {
     }
 
     pub fn print(self, positions: impl IntoIterator<Item=Position>) {
+        // todo this code was partially written while drunk, and so it looks like. refactor!
+
         let positions = positions.into_iter().collect::<HashSet<_>>();
 
         let min_x = positions.iter().map(|p| p.x).min().expect("at least one position must be given");
@@ -371,45 +373,100 @@ impl PositionPrinter {
         let max_x = positions.iter().map(|p| p.x).max().expect("at least one position must be given");
         let max_y = positions.iter().map(|p| p.y).max().expect("at least one position must be given");
 
-        self.print_x_axis(min_x, max_x);
-
-        for y in (min_y..=max_y).rev() {
-            if self.draw_axis {
-                print!("{} ", y.abs());
-            }
-
-            for x in min_x..=max_x {
-                let char = (self.position_mapping)(p!(x, y), &positions);
-                print!("{char} ");
-            }
-
-            if self.draw_axis {
-                println!("{} ", y.abs());
-            } else {
-                println!();
-            }
+        if self.draw_axis {
+            self.print_x_axis(min_x, max_x, min_y, max_y, false);
         }
 
-        self.print_x_axis(min_x, max_x);
+        if self.draw_axis {
+            self.print_with_y_axis(&positions, min_x, max_x, min_y, max_y)
+        } else {
+            self.print_without_y_axis(&positions, min_x, max_x, min_y, max_y)
+        }
+
+        if self.draw_axis {
+            self.print_x_axis(min_x, max_x, min_y, max_y, true);
+        }
     }
 
     fn print_x_axis(
         &self,
         min_x: isize,
-        max_x: isize
+        max_x: isize,
+        min_y: isize,
+        max_y: isize,
+        reverse: bool
     ) {
-        if !self.draw_axis {
-            return
+        let max_x_digital_places = min_x.abs().to_string().len().max(max_x.abs().to_string().len());
+        let max_y_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
+
+        // if the x-axis should be reversed, it will be written from bottom to top instead of top to bottom
+        // this just looks better
+        let places = if reverse {
+            (0..max_x_digital_places).rev().into_iter().collect::<Vec<_>>()
+        } else {
+            (0..max_x_digital_places).into_iter().collect::<Vec<_>>()
+        };
+
+        for i in places {
+            // shift the start of the x-axis so it matches with the start of the y values
+            print!("{}", (0..max_y_digital_places).into_iter().map(|_| ' ').collect::<String>());
+
+            for x in min_x..=max_x {
+                // append enough whitespace so every number is in line
+                let x_str = format!(
+                    "{}{}",
+                    (0..(max_x_digital_places - x.abs().to_string().len())).into_iter().map(|_| ' ').collect::<String>(),
+                    x.abs()
+                );
+
+                let char = x_str.chars().skip(i).next().unwrap();
+                print!("{char}");
+            }
+            println!();
         }
+    }
 
-        let x_axis = (min_x..=max_x)
-            .into_iter()
-            .fold(String::new(), |mut acc, item| {
-                acc += format!(" {}", item.abs()).as_str();
-                acc
-            });
+    fn print_with_y_axis(
+        &self,
+        positions: &HashSet<Position>,
+        min_x: isize,
+        max_x: isize,
+        min_y: isize,
+        max_y: isize,
+    ) {
+        let max_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
 
-        println!(" {x_axis}");
+        for y in (min_y..=max_y).rev() {
+            // append enough whitespace so every number is in line
+            print!(
+                "{}{}",
+                (0..(max_digital_places - y.abs().to_string().len())).into_iter().map(|_| ' ').collect::<String>(),
+                y.abs()
+            );
+
+            for x in min_x..=max_x {
+                print!("{}", (self.position_mapping)(p!(x, y), &positions));
+            }
+
+            println!("{}", y.abs());
+        }
+    }
+
+    fn print_without_y_axis(
+        &self,
+        positions: &HashSet<Position>,
+        min_x: isize,
+        max_x: isize,
+        min_y: isize,
+        max_y: isize,
+    ) {
+        for y in (min_y..=max_y).rev() {
+            for x in min_x..=max_x {
+                print!("{}", (self.position_mapping)(p!(x, y), &positions));
+            }
+
+            println!();
+        }
     }
 }
 
@@ -1014,7 +1071,7 @@ mod tests {
     #[test]
     fn circle_filled_works() {
         let origin = p!(0, 0);
-        let radius = 5;
+        let radius = 15;
 
         PositionPrinter::new().print(origin.circle(radius));
         PositionPrinter::new().print(origin.circle_filled(radius));
@@ -1029,8 +1086,11 @@ mod tests {
             p!(3, 3)
         ];
 
+        println!("basic with axis");
         PositionPrinter::new().print(positions);
+        println!("basic without axis");
         PositionPrinter::new().draw_axis(false).print(positions);
+        println!("basic without axis and custom position mapping");
         PositionPrinter::new()
             .draw_axis(false)
             .position_mapping(|pos, positions| if positions.contains(&pos) {
