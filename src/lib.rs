@@ -144,7 +144,7 @@ impl Position {
     /// Calculates the manhattan distance between this position and another one (https://en.wikipedia.org/wiki/Taxicab_geometry)
     pub fn manhattan_distance(&self, other: &Position) -> f32 {
         if self == other {
-            return 0.0
+            return 0.0;
         }
 
         self.x.abs_diff(other.x) as f32 + self.y.abs_diff(other.y) as f32
@@ -153,7 +153,7 @@ impl Position {
     /// Calculates the euclidean distance between this position and another one (https://en.wikipedia.org/wiki/Euclidean_distance)
     pub fn euclidean_distance(&self, other: &Position) -> f32 {
         if self == other {
-            return 0.0
+            return 0.0;
         }
 
         (self.x.abs_diff(other.x).pow(2) as f32 + self.y.abs_diff(other.y).pow(2) as f32).sqrt()
@@ -167,7 +167,7 @@ impl Position {
     pub fn distance_to(&self, other: &Position) -> usize {
         usize::max(
             (self.x - other.x).abs() as usize,
-            (self.y - other.y).abs() as usize
+            (self.y - other.y).abs() as usize,
         )
     }
 
@@ -330,16 +330,77 @@ impl Position {
 
         positions
     }
+}
 
-    /// Prints a simple representation of the given positions to the terminal.
-    /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
-    pub fn print_positions(positions: impl IntoIterator<Item=Position>) {
-        let positions = positions.into_iter().collect::<Vec<_>>();
+/// Builder like object which is used to print a simple representation of the given positions to the terminal.
+/// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
+pub struct PositionPrinter {
+    position_mapping: Box<dyn Fn(Position, &HashSet<Position>) -> char + 'static>,
+    draw_axis: bool,
+}
+
+impl PositionPrinter {
+    pub fn new() -> Self {
+        let default_mapping = Box::new(|pos: Position, positions: &HashSet<Position>| if positions.contains(&pos) {
+            'X'
+        } else {
+            ' '
+        });
+
+        PositionPrinter {
+            position_mapping: default_mapping,
+            draw_axis: true
+        }
+    }
+
+    pub fn position_mapping(mut self, position_mapping: impl Fn(Position, &HashSet<Position>) -> char + 'static) -> Self {
+        self.position_mapping = Box::new(position_mapping);
+        self
+    }
+
+    pub fn draw_axis(mut self, draw_axis: bool) -> Self {
+        self.draw_axis = draw_axis;
+        self
+    }
+
+    pub fn print(self, positions: impl IntoIterator<Item=Position>) {
+        let positions = positions.into_iter().collect::<HashSet<_>>();
 
         let min_x = positions.iter().map(|p| p.x).min().expect("at least one position must be given");
         let min_y = positions.iter().map(|p| p.y).min().expect("at least one position must be given");
         let max_x = positions.iter().map(|p| p.x).max().expect("at least one position must be given");
         let max_y = positions.iter().map(|p| p.y).max().expect("at least one position must be given");
+
+        self.print_x_axis(min_x, max_x);
+
+        for y in (min_y..=max_y).rev() {
+            if self.draw_axis {
+                print!("{} ", y.abs());
+            }
+
+            for x in min_x..=max_x {
+                let char = (self.position_mapping)(p!(x, y), &positions);
+                print!("{char} ");
+            }
+
+            if self.draw_axis {
+                println!("{} ", y.abs());
+            } else {
+                println!();
+            }
+        }
+
+        self.print_x_axis(min_x, max_x);
+    }
+
+    fn print_x_axis(
+        &self,
+        min_x: isize,
+        max_x: isize
+    ) {
+        if !self.draw_axis {
+            return
+        }
 
         let x_axis = (min_x..=max_x)
             .into_iter()
@@ -347,20 +408,6 @@ impl Position {
                 acc += format!(" {}", item.abs()).as_str();
                 acc
             });
-
-        println!(" {x_axis}");
-
-        for y in (min_y..=max_y).rev() {
-            print!("{} ", y.abs());
-            for x in min_x..=max_x {
-                if positions.contains(&p!(x, y)) {
-                    print!("X ");
-                } else {
-                    print!("  ");
-                }
-            }
-            println!("{} ", y.abs());
-        }
 
         println!(" {x_axis}");
     }
@@ -564,7 +611,7 @@ impl Direction {
 mod tests {
     #[cfg(feature = "bevy")]
     use bevy_math::Vec2;
-    use crate::Position;
+    use crate::{Position, PositionPrinter};
     use crate::Direction::*;
 
     #[test]
@@ -969,8 +1016,8 @@ mod tests {
         let origin = p!(0, 0);
         let radius = 5;
 
-        Position::print_positions(origin.circle(radius));
-        Position::print_positions(origin.circle_filled(radius));
+        PositionPrinter::new().print(origin.circle(radius));
+        PositionPrinter::new().print(origin.circle_filled(radius));
     }
 
     #[test]
@@ -982,6 +1029,15 @@ mod tests {
             p!(3, 3)
         ];
 
-        Position::print_positions(positions);
+        PositionPrinter::new().print(positions);
+        PositionPrinter::new().draw_axis(false).print(positions);
+        PositionPrinter::new()
+            .draw_axis(false)
+            .position_mapping(|pos, positions| if positions.contains(&pos) {
+                'O'
+            } else {
+                'X'
+            })
+            .print(positions);
     }
 }
