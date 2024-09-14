@@ -364,8 +364,13 @@ impl PositionPrinter {
     }
 
     pub fn print(self, positions: impl IntoIterator<Item=Position>) {
+        println!("{}", self.to_string(positions));
+    }
+
+    pub fn to_string(self, positions: impl IntoIterator<Item=Position>) -> String {
         // todo this code was partially written while drunk, and so it looks like. refactor!
 
+        let mut result = String::new();
         let positions = positions.into_iter().collect::<HashSet<_>>();
 
         let min_x = positions.iter().map(|p| p.x).min().expect("at least one position must be given");
@@ -374,18 +379,20 @@ impl PositionPrinter {
         let max_y = positions.iter().map(|p| p.y).max().expect("at least one position must be given");
 
         if self.draw_axis {
-            self.print_x_axis(min_x, max_x, min_y, max_y, false);
+            result += &self.print_x_axis(min_x, max_x, min_y, max_y, false);
         }
 
         if self.draw_axis {
-            self.print_with_y_axis(&positions, min_x, max_x, min_y, max_y)
+            result += &self.print_with_y_axis(&positions, min_x, max_x, min_y, max_y)
         } else {
-            self.print_without_y_axis(&positions, min_x, max_x, min_y, max_y)
+            result += &self.print_without_y_axis(&positions, min_x, max_x, min_y, max_y)
         }
 
         if self.draw_axis {
-            self.print_x_axis(min_x, max_x, min_y, max_y, true);
+            result += &self.print_x_axis(min_x, max_x, min_y, max_y, true);
         }
+
+        result
     }
 
     fn print_x_axis(
@@ -395,7 +402,9 @@ impl PositionPrinter {
         min_y: isize,
         max_y: isize,
         reverse: bool
-    ) {
+    ) -> String {
+        let mut result = String::new();
+
         let max_x_digital_places = min_x.abs().to_string().len().max(max_x.abs().to_string().len());
         let max_y_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
 
@@ -409,7 +418,7 @@ impl PositionPrinter {
 
         for i in places {
             // shift the start of the x-axis so it matches with the start of the y values
-            print!("{}", (0..max_y_digital_places).into_iter().map(|_| ' ').collect::<String>());
+            result += &(0..max_y_digital_places).into_iter().map(|_| ' ').collect::<String>();
 
             for x in min_x..=max_x {
                 // append enough whitespace so every number is in line
@@ -420,10 +429,12 @@ impl PositionPrinter {
                 );
 
                 let char = x_str.chars().skip(i).next().unwrap();
-                print!("{char}");
+                result += &format!("{char}");
             }
-            println!();
+            result += "\n";
         }
+
+        result
     }
 
     fn print_with_y_axis(
@@ -433,23 +444,27 @@ impl PositionPrinter {
         max_x: isize,
         min_y: isize,
         max_y: isize,
-    ) {
+    ) -> String {
+        let mut result = String::new();
+
         let max_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
 
         for y in (min_y..=max_y).rev() {
             // append enough whitespace so every number is in line
-            print!(
+            result += &format!(
                 "{}{}",
                 (0..(max_digital_places - y.abs().to_string().len())).into_iter().map(|_| ' ').collect::<String>(),
                 y.abs()
             );
 
             for x in min_x..=max_x {
-                print!("{}", (self.position_mapping)(p!(x, y), &positions));
+                result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
             }
 
-            println!("{}", y.abs());
+            result += &format!("{}\n", y.abs());
         }
+
+        result
     }
 
     fn print_without_y_axis(
@@ -459,14 +474,18 @@ impl PositionPrinter {
         max_x: isize,
         min_y: isize,
         max_y: isize,
-    ) {
+    ) -> String {
+        let mut result = String::new();
+
         for y in (min_y..=max_y).rev() {
             for x in min_x..=max_x {
-                print!("{}", (self.position_mapping)(p!(x, y), &positions));
+                result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
             }
 
-            println!();
+            result += "\n";
         }
+
+        result
     }
 }
 
