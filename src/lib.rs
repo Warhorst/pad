@@ -335,6 +335,7 @@ impl Position {
 /// Builder like object which is used to print a simple representation of the given positions to the terminal.
 /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
 pub struct PositionPrinter {
+    // todo add an option to set custom bounds, instead of figuring out the bounds based on the input
     position_mapping: Box<dyn Fn(Position, &HashSet<Position>) -> char + 'static>,
     draw_axis: bool,
 }
