@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::ops::{Add, Sub};
 
@@ -330,14 +331,68 @@ impl Position {
 
         positions
     }
+    
+    /// Tells if this position is in the given bounds
+    pub fn in_bounds(&self, bounds: Bounds) -> bool {
+        bounds.contains_position(*self)
+    }
+}
+
+/// Describes the value bounds a position can have.
+#[derive(Copy, Clone, Default)]
+pub struct Bounds {
+    pub min_x: isize,
+    pub min_y: isize,
+    pub max_x: isize,
+    pub max_y: isize,
+}
+
+impl Bounds {
+    pub fn new(
+        min_x: isize,
+        min_y: isize,
+        max_x: isize,
+        max_y: isize,
+    ) -> Self {
+        Bounds {
+            min_x,
+            min_y,
+            max_x,
+            max_y,
+        }
+    }
+
+    /// Create bounds by determining them from the given positions
+    pub fn from_positions(positions: impl IntoIterator<Item=Position>) -> Self {
+        positions
+            .into_iter()
+            .fold(Bounds::default(), |mut bounds, item| {
+                bounds.min_x = min(bounds.min_x, item.x);
+                bounds.min_y = min(bounds.min_y, item.y);
+                bounds.max_x = max(bounds.max_x, item.x);
+                bounds.max_y = max(bounds.max_y, item.y);
+                bounds
+            })
+    }
+
+    /// Tells if this Bounds contains the given position 
+    pub fn contains_position(&self, pos: Position) -> bool {
+        self.min_x <= pos.x
+            && self.max_x >= pos.x
+            && self.min_y <= pos.y
+            && self.max_y >= pos.y
+    }
 }
 
 /// Builder like object which is used to print a simple representation of the given positions to the terminal.
 /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
 pub struct PositionPrinter {
-    // todo add an option to set custom bounds, instead of figuring out the bounds based on the input
+    /// Closure which takes the current position and all position and returns the character that will be printed for this position
     position_mapping: Box<dyn Fn(Position, &HashSet<Position>) -> char + 'static>,
+    /// Tells if the x anc y-axis should be printed. Defaults to true
     draw_axis: bool,
+    /// The bounds of the printed positions. If not set, the bounds will be calculated from the given positions. Defaults to None
+    bounds: Option<Bounds>,
 }
 
 impl PositionPrinter {
@@ -351,6 +406,7 @@ impl PositionPrinter {
         PositionPrinter {
             position_mapping: default_mapping,
             draw_axis: true,
+            bounds: None,
         }
     }
 
@@ -364,6 +420,11 @@ impl PositionPrinter {
         self
     }
 
+    pub fn bounds(mut self, bounds: Bounds) -> Self {
+        self.bounds = Some(bounds);
+        self
+    }
+
     pub fn print(self, positions: impl IntoIterator<Item=Position>) {
         println!("{}", self.to_string(positions));
     }
@@ -373,24 +434,24 @@ impl PositionPrinter {
 
         let mut result = String::new();
         let positions = positions.into_iter().collect::<HashSet<_>>();
-
-        let min_x = positions.iter().map(|p| p.x).min().expect("at least one position must be given");
-        let min_y = positions.iter().map(|p| p.y).min().expect("at least one position must be given");
-        let max_x = positions.iter().map(|p| p.x).max().expect("at least one position must be given");
-        let max_y = positions.iter().map(|p| p.y).max().expect("at least one position must be given");
+        
+        let bounds = match self.bounds {
+            Some(b) => b,
+            None => Bounds::from_positions(positions.iter().copied())
+        };
 
         if self.draw_axis {
-            result += &self.print_x_axis(min_x, max_x, min_y, max_y, false);
+            result += &self.print_x_axis(bounds, false);
         }
 
         if self.draw_axis {
-            result += &self.print_with_y_axis(&positions, min_x, max_x, min_y, max_y)
+            result += &self.print_with_y_axis(&positions, bounds)
         } else {
-            result += &self.print_without_y_axis(&positions, min_x, max_x, min_y, max_y)
+            result += &self.print_without_y_axis(&positions, bounds)
         }
 
         if self.draw_axis {
-            result += &self.print_x_axis(min_x, max_x, min_y, max_y, true);
+            result += &self.print_x_axis(bounds, true);
         }
 
         result
@@ -398,16 +459,13 @@ impl PositionPrinter {
 
     fn print_x_axis(
         &self,
-        min_x: isize,
-        max_x: isize,
-        min_y: isize,
-        max_y: isize,
-        reverse: bool
+        bounds: Bounds,
+        reverse: bool,
     ) -> String {
         let mut result = String::new();
 
-        let max_x_digital_places = min_x.abs().to_string().len().max(max_x.abs().to_string().len());
-        let max_y_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
+        let max_x_digital_places = bounds.min_x.abs().to_string().len().max(bounds.max_x.abs().to_string().len());
+        let max_y_digital_places = bounds.min_y.abs().to_string().len().max(bounds.max_y.abs().to_string().len());
 
         // if the x-axis should be reversed, it will be written from bottom to top instead of top to bottom
         // this just looks better
@@ -421,7 +479,7 @@ impl PositionPrinter {
             // shift the start of the x-axis so it matches with the start of the y values
             result += &(0..max_y_digital_places).into_iter().map(|_| ' ').collect::<String>();
 
-            for x in min_x..=max_x {
+            for x in bounds.min_x..=bounds.max_x {
                 // append enough whitespace so every number is in line
                 let x_str = format!(
                     "{}{}",
@@ -441,16 +499,13 @@ impl PositionPrinter {
     fn print_with_y_axis(
         &self,
         positions: &HashSet<Position>,
-        min_x: isize,
-        max_x: isize,
-        min_y: isize,
-        max_y: isize,
+        bounds: Bounds
     ) -> String {
         let mut result = String::new();
 
-        let max_digital_places = min_y.abs().to_string().len().max(max_y.abs().to_string().len());
+        let max_digital_places = bounds.min_y.abs().to_string().len().max(bounds.max_y.abs().to_string().len());
 
-        for y in (min_y..=max_y).rev() {
+        for y in (bounds.min_y..=bounds.max_y).rev() {
             // append enough whitespace so every number is in line
             result += &format!(
                 "{}{}",
@@ -458,7 +513,7 @@ impl PositionPrinter {
                 y.abs()
             );
 
-            for x in min_x..=max_x {
+            for x in bounds.min_x..=bounds.max_x {
                 result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
             }
 
@@ -471,15 +526,12 @@ impl PositionPrinter {
     fn print_without_y_axis(
         &self,
         positions: &HashSet<Position>,
-        min_x: isize,
-        max_x: isize,
-        min_y: isize,
-        max_y: isize,
+        bounds: Bounds
     ) -> String {
         let mut result = String::new();
 
-        for y in (min_y..=max_y).rev() {
-            for x in min_x..=max_x {
+        for y in (bounds.min_y..=bounds.max_y).rev() {
+            for x in bounds.min_x..=bounds.max_x {
                 result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
             }
 
@@ -688,7 +740,7 @@ impl Direction {
 mod tests {
     #[cfg(feature = "bevy")]
     use bevy_math::Vec2;
-    use crate::{Position, PositionPrinter};
+    use crate::{Bounds, Position, PositionPrinter};
     use crate::Direction::*;
 
     #[test]
@@ -1108,6 +1160,8 @@ mod tests {
 
         println!("basic with axis");
         PositionPrinter::new().print(positions);
+        println!("basic with axis and custom bounds");
+        PositionPrinter::new().bounds(Bounds::new(-5, -5, 5, 5)).print(positions);
         println!("basic without axis");
         PositionPrinter::new().draw_axis(false).print(positions);
         println!("basic without axis and custom position mapping");
