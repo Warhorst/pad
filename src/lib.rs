@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::ops::{Add, Sub};
+use std::ops::{Add, AddAssign, Sub, SubAssign};
 
 use Direction::*;
 #[cfg(feature = "bevy")]
@@ -564,6 +564,18 @@ impl Add<(isize, isize)> for Position {
     }
 }
 
+impl AddAssign for Position {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs
+    }
+} 
+
+impl AddAssign<(isize, isize)> for Position {
+    fn add_assign(&mut self, rhs: (isize, isize)) {
+        *self = *self + rhs
+    }
+}
+
 impl Sub for Position {
     type Output = Position;
 
@@ -583,6 +595,18 @@ impl Sub<(isize, isize)> for Position {
             self.x - x,
             self.y - y,
         )
+    }
+}
+
+impl SubAssign for Position {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs
+    }
+}
+
+impl SubAssign<(isize, isize)> for Position {
+    fn sub_assign(&mut self, rhs: (isize, isize)) {
+        *self = *self - rhs
     }
 }
 
@@ -745,30 +769,42 @@ mod tests {
 
     #[test]
     fn add_position_works() {
-        let pos = p!(1, 2);
+        let mut pos = p!(1, 2);
         let other = p!(2, 3);
         assert_eq!(p!(3, 5), pos + other);
+        
+        pos += other;
+        assert_eq!(p!(3, 5), pos);
     }
 
     #[test]
     fn add_tuple_works() {
-        let pos = p!(1, 2);
+        let mut pos = p!(1, 2);
         let other = (2, 3);
         assert_eq!(p!(3, 5), pos + other);
+
+        pos += other;
+        assert_eq!(p!(3, 5), pos);
     }
 
     #[test]
     fn sup_position_works() {
-        let pos = p!(1, 2);
+        let mut pos = p!(1, 2);
         let other = p!(2, 3);
         assert_eq!(p!(-1, -1), pos - other);
+
+        pos -= other;
+        assert_eq!(p!(-1, -1), pos);
     }
 
     #[test]
     fn sub_tuple_works() {
-        let pos = p!(1, 2);
+        let mut pos = p!(1, 2);
         let other = (2, 3);
         assert_eq!(p!(-1, -1), pos - other);
+
+        pos -= other;
+        assert_eq!(p!(-1, -1), pos);
     }
 
     #[test]
