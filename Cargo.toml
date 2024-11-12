@@ -8,6 +8,6 @@ serde = ["dep:serde"]
 bevy = ["dep:bevy_reflect", "dep:bevy_math"]
 
 [dependencies]
-bevy_reflect = { version = "0.14.0", optional = true}
-bevy_math = { version = "0.14.0", optional = true }
+bevy_reflect = { version = "0.14.2", optional = true}
+bevy_math = { version = "0.14.2", optional = true }
 serde = { version = "1.0.159", features = ["derive"], optional = true }
