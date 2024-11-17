@@ -71,9 +71,10 @@ impl Position {
     /// The two positions form a square. For example (0,0) and (4,3) form the following shape
     ///
     /// ```
-    /// // XXXX
-    /// // XXXX
-    /// // XXXX
+    /// // XXXXX
+    /// // XXXXX
+    /// // XXXXX
+    /// // XXXXX
     /// ```
     ///
     /// The iterator takes every position from left to right and bottom to top. So the first element will be (0,0),
@@ -331,7 +332,7 @@ impl Position {
 
         positions
     }
-    
+
     /// Tells if this position is in the given bounds
     pub fn in_bounds(&self, bounds: Bounds) -> bool {
         bounds.contains_position(*self)
@@ -434,7 +435,7 @@ impl PositionPrinter {
 
         let mut result = String::new();
         let positions = positions.into_iter().collect::<HashSet<_>>();
-        
+
         let bounds = match self.bounds {
             Some(b) => b,
             None => Bounds::from_positions(positions.iter().copied())
@@ -499,7 +500,7 @@ impl PositionPrinter {
     fn print_with_y_axis(
         &self,
         positions: &HashSet<Position>,
-        bounds: Bounds
+        bounds: Bounds,
     ) -> String {
         let mut result = String::new();
 
@@ -526,7 +527,7 @@ impl PositionPrinter {
     fn print_without_y_axis(
         &self,
         positions: &HashSet<Position>,
-        bounds: Bounds
+        bounds: Bounds,
     ) -> String {
         let mut result = String::new();
 
@@ -568,7 +569,7 @@ impl AddAssign for Position {
     fn add_assign(&mut self, rhs: Self) {
         *self = *self + rhs
     }
-} 
+}
 
 impl AddAssign<(isize, isize)> for Position {
     fn add_assign(&mut self, rhs: (isize, isize)) {
@@ -648,8 +649,7 @@ impl PositionIter {
             panic!("start must be less or equal to end")
         }
 
-        PositionIter
-        {
+        PositionIter {
             current_x: start.x,
             current_y: start.y,
             start,
@@ -682,6 +682,12 @@ impl Iterator for PositionIter {
         let current = Position::new(self.current_x, self.current_y);
         self.increment();
         Some(current)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = ((self.end.x - self.start.x) * (self.end.y - self.start.y)) as usize;
+        // The iterator will always have at least one element, the start position
+        (1, Some(size))
     }
 }
 
@@ -772,7 +778,7 @@ mod tests {
         let mut pos = p!(1, 2);
         let other = p!(2, 3);
         assert_eq!(p!(3, 5), pos + other);
-        
+
         pos += other;
         assert_eq!(p!(3, 5), pos);
     }
@@ -934,6 +940,12 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).collect::<Vec<_>>(), expected))
+    }
+
+    #[test]
+    fn position_iter_size_hint_works() {
+        let iter = p!(0, 0).iter_to(p!(4, 4));
+        assert_eq!(iter.size_hint(), (1, Some(16)))
     }
 
     #[test]
