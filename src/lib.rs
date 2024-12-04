@@ -26,23 +26,23 @@ impl Position {
 
     /// Return all neighbours of the given position
     pub fn neighbours(&self) -> [Position; 8] {
-        Direction::all_directions().map(|dir| self.neighbour_in_direction(dir))
+        Direction::dirs().map(|dir| self.neighbour_in_direction(dir))
     }
 
     /// Return the neighbours in all four cardinal directions (up, down, left, right)
     pub fn cardinal_neighbours(&self) -> [Position; 4] {
-        Direction::cardinal_directions().map(|dir| self.neighbour_in_direction(dir))
+        Direction::cardinal_dirs().map(|dir| self.neighbour_in_direction(dir))
     }
 
     /// Return all neighbours of the given position with the direction they are relative to the origin
     pub fn neighbours_with_directions(&self) -> [(Position, Direction); 8] {
-        Direction::all_directions().map(|dir| (self.neighbour_in_direction(dir), dir))
+        Direction::dirs().map(|dir| (self.neighbour_in_direction(dir), dir))
     }
 
     /// Return the neighbours in all four cardinal directions (up, down, left, right)
     /// with the direction they are relative to the origin
     pub fn cardinal_neighbours_with_directions(&self) -> [(Position, Direction); 4] {
-        Direction::cardinal_directions().map(|dir| (self.neighbour_in_direction(dir), dir))
+        Direction::cardinal_dirs().map(|dir| (self.neighbour_in_direction(dir), dir))
     }
 
     /// Return the position in the given direction next to this position
@@ -715,11 +715,13 @@ pub enum Direction {
 }
 
 impl Direction {
-    fn all_directions() -> [Direction; 8] {
+    /// Get all possible directions in the order they are defined in Direction.
+    pub fn dirs() -> [Direction; 8] {
         [XP, XM, YP, YM, XPYP, XPYM, XMYP, XMYM]
     }
 
-    fn cardinal_directions() -> [Direction; 4] {
+    /// Get all cardinal directions in the order they are defined in Direction.
+    pub fn cardinal_dirs() -> [Direction; 4] {
         [XP, XM, YP, YM]
     }
 
