@@ -1,6 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::HashSet;
-use std::ops::{Add, AddAssign, Sub, SubAssign};
+use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 use Direction::*;
 #[cfg(feature = "bevy")]
@@ -611,6 +611,46 @@ impl SubAssign<(isize, isize)> for Position {
     }
 }
 
+impl Mul<i32> for Position {
+    type Output = Position;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        p!(rhs as isize * self.x, rhs as isize * self.y)
+    }
+}
+
+impl Mul<isize> for Position {
+    type Output = Position;
+
+    fn mul(self, rhs: isize) -> Self::Output {
+        p!(rhs * self.x, rhs * self.y)
+    }
+}
+
+impl Mul<Position> for i32 {
+    type Output = Position;
+
+    fn mul(self, rhs: Position) -> Self::Output {
+        p!(rhs.x * self as isize, rhs.y * self as isize)
+    }
+}
+
+impl Mul<Position> for isize {
+    type Output = Position;
+
+    fn mul(self, rhs: Position) -> Self::Output {
+        p!(rhs.x * self, rhs.y * self)
+    }
+}
+
+impl Neg for Position {
+    type Output = Position;
+
+    fn neg(self) -> Self::Output {
+        -1 * self
+    }
+}
+
 impl From<(isize, isize)> for Position {
     fn from((x, y): (isize, isize)) -> Self {
         Position::new(x, y)
@@ -813,6 +853,23 @@ mod tests {
 
         pos -= other;
         assert_eq!(p!(-1, -1), pos);
+    }
+    
+    #[test]
+    fn mul_works() {
+        let pos = p!(-5, 6);
+        let expected = p!(25, -30);
+        
+        assert_eq!(pos * -5i32, expected);
+        assert_eq!(pos * -5isize, expected);
+        assert_eq!(-5i32 * pos, expected);
+        assert_eq!(-5isize * pos, expected);
+    }
+    
+    #[test]
+    fn neg_works() {
+        let pos = p!(-5, 6);
+        assert_eq!(-pos, p!(5, -6));
     }
 
     #[test]
