@@ -392,6 +392,8 @@ pub struct PositionPrinter {
     position_mapping: Box<dyn Fn(Position, &HashSet<Position>) -> char + 'static>,
     /// Tells if the x anc y-axis should be printed. Defaults to true
     draw_axis: bool,
+    /// Tells if (0, 0) on the printed positions is top left rather than bottom left. Defaults to false
+    y_is_top: bool,
     /// The bounds of the printed positions. If not set, the bounds will be calculated from the given positions. Defaults to None
     bounds: Option<Bounds>,
 }
@@ -407,6 +409,7 @@ impl PositionPrinter {
         PositionPrinter {
             position_mapping: default_mapping,
             draw_axis: true,
+            y_is_top: false,
             bounds: None,
         }
     }
@@ -418,6 +421,11 @@ impl PositionPrinter {
 
     pub fn draw_axis(mut self, draw_axis: bool) -> Self {
         self.draw_axis = draw_axis;
+        self
+    }
+
+    pub fn y_is_top(mut self, y_is_top: bool) -> Self {
+        self.y_is_top = y_is_top;
         self
     }
 
@@ -503,10 +511,9 @@ impl PositionPrinter {
         bounds: Bounds,
     ) -> String {
         let mut result = String::new();
-
         let max_digital_places = bounds.min_y.abs().to_string().len().max(bounds.max_y.abs().to_string().len());
 
-        for y in (bounds.min_y..=bounds.max_y).rev() {
+        let mut append_result = |y: isize| {
             // append enough whitespace so every number is in line
             result += &format!(
                 "{}{}",
@@ -519,6 +526,16 @@ impl PositionPrinter {
             }
 
             result += &format!("{}\n", y.abs());
+        };
+
+        if self.y_is_top {
+            for y in bounds.min_y..=bounds.max_y {
+                append_result(y);
+            }
+        } else {
+            for y in (bounds.min_y..=bounds.max_y).rev() {
+                append_result(y);
+            }
         }
 
         result
@@ -530,13 +547,22 @@ impl PositionPrinter {
         bounds: Bounds,
     ) -> String {
         let mut result = String::new();
-
-        for y in (bounds.min_y..=bounds.max_y).rev() {
+        let mut append_result = |y: isize| {
             for x in bounds.min_x..=bounds.max_x {
                 result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
             }
 
             result += "\n";
+        };
+
+        if self.y_is_top {
+            for y in bounds.min_y..=bounds.max_y {
+                append_result(y)
+            }
+        } else {
+            for y in (bounds.min_y..=bounds.max_y).rev() {
+                append_result(y)
+            }
         }
 
         result
@@ -1271,6 +1297,10 @@ mod tests {
         PositionPrinter::new().bounds(Bounds::new(-5, -5, 5, 5)).print(positions);
         println!("basic without axis");
         PositionPrinter::new().draw_axis(false).print(positions);
+        println!("basic with axis and y is top");
+        PositionPrinter::new().y_is_top(true).print(positions);
+        println!("basic without axis and y is top");
+        PositionPrinter::new().draw_axis(false).y_is_top(true).print(positions);
         println!("basic without axis and custom position mapping");
         PositionPrinter::new()
             .draw_axis(false)
