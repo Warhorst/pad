@@ -388,8 +388,6 @@ impl Bounds {
 /// Builder like object which is used to print a simple representation of the given positions to the terminal.
 /// Signs are omitted, top/right goes to positive infinity, down/left to negative infinity.
 pub struct PositionPrinter {
-    /// Closure which takes the current position and all position and returns the character that will be printed for this position
-    position_mapping: Box<dyn Fn(Position, &HashSet<Position>) -> char + 'static>,
     /// Tells if the x anc y-axis should be printed. Defaults to true
     draw_axis: bool,
     /// Tells if (0, 0) on the printed positions is top left rather than bottom left. Defaults to false
@@ -400,23 +398,11 @@ pub struct PositionPrinter {
 
 impl PositionPrinter {
     pub fn new() -> Self {
-        let default_mapping = Box::new(|pos: Position, positions: &HashSet<Position>| if positions.contains(&pos) {
-            'X'
-        } else {
-            ' '
-        });
-
         PositionPrinter {
-            position_mapping: default_mapping,
             draw_axis: true,
             y_is_top: false,
             bounds: None,
         }
-    }
-
-    pub fn position_mapping(mut self, position_mapping: impl Fn(Position, &HashSet<Position>) -> char + 'static) -> Self {
-        self.position_mapping = Box::new(position_mapping);
-        self
     }
 
     pub fn draw_axis(mut self, draw_axis: bool) -> Self {
@@ -434,15 +420,38 @@ impl PositionPrinter {
         self
     }
 
-    pub fn print(self, positions: impl IntoIterator<Item=Position>) {
-        println!("{}", self.to_string(positions));
+    pub fn print(
+        self,
+        positions: impl IntoIterator<Item=Position>
+    ) {
+        let positions = positions.into_iter().collect::<HashSet<_>>();
+
+        let default_mapping = |pos: Position| if positions.contains(&pos) {
+            'X'
+        } else {
+            ' '
+        };
+
+        println!("{}", self.to_string(&positions, default_mapping));
     }
 
-    pub fn to_string(self, positions: impl IntoIterator<Item=Position>) -> String {
+    pub fn print_with_mapping(
+        self,
+        positions: impl IntoIterator<Item=Position>,
+        pos_map: impl Fn(Position) -> char
+    ) {
+        let positions = positions.into_iter().collect::<HashSet<_>>();
+        println!("{}", self.to_string(&positions, pos_map));
+    }
+
+    pub fn to_string(
+        self,
+        positions: &HashSet<Position>,
+        pos_map: impl Fn(Position) -> char
+    ) -> String {
         // todo this code was partially written while drunk, and so it looks like. refactor!
 
         let mut result = String::new();
-        let positions = positions.into_iter().collect::<HashSet<_>>();
 
         let bounds = match self.bounds {
             Some(b) => b,
@@ -454,9 +463,9 @@ impl PositionPrinter {
         }
 
         if self.draw_axis {
-            result += &self.print_with_y_axis(&positions, bounds)
+            result += &self.print_with_y_axis(bounds, pos_map)
         } else {
-            result += &self.print_without_y_axis(&positions, bounds)
+            result += &self.print_without_y_axis(bounds, pos_map)
         }
 
         if self.draw_axis {
@@ -507,8 +516,8 @@ impl PositionPrinter {
 
     fn print_with_y_axis(
         &self,
-        positions: &HashSet<Position>,
         bounds: Bounds,
+        pos_map: impl Fn(Position) -> char
     ) -> String {
         let mut result = String::new();
         let max_digital_places = bounds.min_y.abs().to_string().len().max(bounds.max_y.abs().to_string().len());
@@ -522,7 +531,7 @@ impl PositionPrinter {
             );
 
             for x in bounds.min_x..=bounds.max_x {
-                result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
+                result += &format!("{}", pos_map(p!(x, y)));
             }
 
             result += &format!("{}\n", y.abs());
@@ -543,13 +552,13 @@ impl PositionPrinter {
 
     fn print_without_y_axis(
         &self,
-        positions: &HashSet<Position>,
         bounds: Bounds,
+        pos_map: impl Fn(Position) -> char
     ) -> String {
         let mut result = String::new();
         let mut append_result = |y: isize| {
             for x in bounds.min_x..=bounds.max_x {
-                result += &format!("{}", (self.position_mapping)(p!(x, y), &positions));
+                result += &format!("{}", pos_map(p!(x, y)));
             }
 
             result += "\n";
@@ -1304,11 +1313,10 @@ mod tests {
         println!("basic without axis and custom position mapping");
         PositionPrinter::new()
             .draw_axis(false)
-            .position_mapping(|pos, positions| if positions.contains(&pos) {
+            .print_with_mapping(positions, |pos| if positions.contains(&pos) {
                 'O'
             } else {
                 'X'
-            })
-            .print(positions);
+            });
     }
 }
