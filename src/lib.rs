@@ -1,14 +1,17 @@
+pub mod board;
+pub mod shape;
+
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
-use Direction::*;
 #[cfg(feature = "bevy")]
 use bevy_math::*;
 #[cfg(feature = "bevy")]
 use bevy_reflect::Reflect;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use Direction::*;
 
 /// A 2D-point with signed x and y values. Used for boards and similar stuff.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -422,7 +425,7 @@ impl PositionPrinter {
 
     pub fn print(
         self,
-        positions: impl IntoIterator<Item=Position>
+        positions: impl IntoIterator<Item=Position>,
     ) {
         let positions = positions.into_iter().collect::<HashSet<_>>();
 
@@ -438,7 +441,7 @@ impl PositionPrinter {
     pub fn print_with_mapping(
         self,
         positions: impl IntoIterator<Item=Position>,
-        pos_map: impl Fn(Position) -> char
+        pos_map: impl Fn(Position) -> char,
     ) {
         let positions = positions.into_iter().collect::<HashSet<_>>();
         println!("{}", self.to_string(&positions, pos_map));
@@ -447,7 +450,7 @@ impl PositionPrinter {
     pub fn to_string(
         self,
         positions: &HashSet<Position>,
-        pos_map: impl Fn(Position) -> char
+        pos_map: impl Fn(Position) -> char,
     ) -> String {
         // todo this code was partially written while drunk, and so it looks like. refactor!
 
@@ -517,7 +520,7 @@ impl PositionPrinter {
     fn print_with_y_axis(
         &self,
         bounds: Bounds,
-        pos_map: impl Fn(Position) -> char
+        pos_map: impl Fn(Position) -> char,
     ) -> String {
         let mut result = String::new();
         let max_digital_places = bounds.min_y.abs().to_string().len().max(bounds.max_y.abs().to_string().len());
@@ -553,7 +556,7 @@ impl PositionPrinter {
     fn print_without_y_axis(
         &self,
         bounds: Bounds,
-        pos_map: impl Fn(Position) -> char
+        pos_map: impl Fn(Position) -> char,
     ) -> String {
         let mut result = String::new();
         let mut append_result = |y: isize| {
@@ -845,10 +848,10 @@ impl Direction {
 
 #[cfg(test)]
 mod tests {
+    use crate::Direction::*;
+    use crate::{Bounds, Position, PositionPrinter};
     #[cfg(feature = "bevy")]
     use bevy_math::Vec2;
-    use crate::{Bounds, Position, PositionPrinter};
-    use crate::Direction::*;
 
     #[test]
     fn add_position_works() {
@@ -889,18 +892,18 @@ mod tests {
         pos -= other;
         assert_eq!(p!(-1, -1), pos);
     }
-    
+
     #[test]
     fn mul_works() {
         let pos = p!(-5, 6);
         let expected = p!(25, -30);
-        
+
         assert_eq!(pos * -5i32, expected);
         assert_eq!(pos * -5isize, expected);
         assert_eq!(-5i32 * pos, expected);
         assert_eq!(-5isize * pos, expected);
     }
-    
+
     #[test]
     fn neg_works() {
         let pos = p!(-5, 6);
