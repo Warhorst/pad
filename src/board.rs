@@ -376,11 +376,11 @@ impl<'a, T> Row<'a, T> {
 }
 
 impl<'a, T> Iterator for Row<'a, T> {
-    type Item = &'a T;
+    type Item = (Position, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.position_iter.next() {
-            Some(pos) => self.board.get_tile(pos),
+            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
             None => None
         }
     }
@@ -389,7 +389,7 @@ impl<'a, T> Iterator for Row<'a, T> {
 impl<'a, T> DoubleEndedIterator for Row<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         match self.position_iter.next_back() {
-            Some(pos) => self.board.get_tile(pos),
+            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
             None => None
         }
     }
@@ -438,11 +438,11 @@ impl<'a, T> Column<'a, T> {
 }
 
 impl<'a, T> Iterator for Column<'a, T> {
-    type Item = &'a T;
+    type Item = (Position, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.position_iter.next() {
-            Some(pos) => self.board.get_tile(pos),
+            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
             None => None,
         }
     }
@@ -451,7 +451,7 @@ impl<'a, T> Iterator for Column<'a, T> {
 impl<'a, T> DoubleEndedIterator for Column<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         match self.position_iter.next_back() {
-            Some(pos) => self.board.get_tile(pos),
+            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
             None => None,
         }
     }
