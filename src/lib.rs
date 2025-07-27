@@ -714,6 +714,9 @@ macro_rules! p {
     };
 }
 
+// todo adapt the position iter to allow any direction (currently only -inf, -inf to +inf, +inf is allowed)
+//  maybe store the direction and apply the x/y adaptions accordingly
+
 pub struct PositionIter {
     current_x_front: isize,
     current_y_front: isize,
