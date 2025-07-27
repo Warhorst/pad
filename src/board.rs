@@ -179,7 +179,7 @@ impl<T> Board<T> {
     }
 
     /// Returns an iterator over all tiles and their positions on the board.
-    pub fn tiles_and_positions(&self) -> impl IntoIterator<Item=(&T, Position)> {
+    pub fn tiles_and_positions(&self) -> impl Iterator<Item=(&T, Position)> {
         self.positions()
             .into_iter()
             .map(|pos| (self.get_tile(pos).expect("the tile must exist"), pos))
@@ -212,7 +212,7 @@ impl<T> Board<T> {
     pub fn get_tiles_at_positions(
         &self,
         positions: impl IntoIterator<Item=Position>,
-    ) -> impl IntoIterator<Item=&T> {
+    ) -> impl Iterator<Item=&T> {
         positions
             .into_iter()
             .flat_map(|pos| self.get_tile(pos))
@@ -285,7 +285,7 @@ where
     }
 
     /// Returns the positions which contain the given tile
-    pub fn get_positions_of<'a>(&'a self, tile: &'a T) -> impl IntoIterator<Item=Position> + 'a {
+    pub fn get_positions_of<'a>(&'a self, tile: &'a T) -> impl Iterator<Item=Position> + 'a {
         self.tiles_and_positions()
             .into_iter()
             .filter(move |(t, _)| *t == tile)
@@ -386,6 +386,15 @@ impl<'a, T> Iterator for Row<'a, T> {
     }
 }
 
+impl<'a, T> DoubleEndedIterator for Row<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self.position_iter.next_back() {
+            Some(pos) => self.board.get_tile(pos),
+            None => None
+        }
+    }
+}
+
 pub struct Columns<'a, T> {
     board: &'a Board<T>,
     current_x: usize,
@@ -433,6 +442,15 @@ impl<'a, T> Iterator for Column<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.position_iter.next() {
+            Some(pos) => self.board.get_tile(pos),
+            None => None,
+        }
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for Column<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        match self.position_iter.next_back() {
             Some(pos) => self.board.get_tile(pos),
             None => None,
         }

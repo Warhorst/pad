@@ -715,8 +715,10 @@ macro_rules! p {
 }
 
 pub struct PositionIter {
-    current_x: isize,
-    current_y: isize,
+    current_x_front: isize,
+    current_y_front: isize,
+    current_x_back: isize,
+    current_y_back: isize,
     start: Position,
     end: Position,
 }
@@ -728,23 +730,34 @@ impl PositionIter {
         }
 
         PositionIter {
-            current_x: start.x,
-            current_y: start.y,
+            current_x_front: start.x,
+            current_y_front: start.y,
+            current_x_back: end.x,
+            current_y_back: end.y,
             start,
             end,
         }
     }
 
     fn is_finished(&self) -> bool {
-        self.current_x > self.end.x || self.current_y > self.end.y
+        self.current_x_front > self.current_x_back || self.current_y_front > self.current_y_back
     }
 
     fn increment(&mut self) {
-        self.current_x += 1;
+        self.current_x_front += 1;
 
-        if self.current_x > self.end.x && self.current_y < self.end.y {
-            self.current_x = self.start.x;
-            self.current_y += 1;
+        if self.current_x_front > self.end.x && self.current_y_front < self.end.y {
+            self.current_x_front = self.start.x;
+            self.current_y_front += 1;
+        }
+    }
+
+    fn increment_back(&mut self) {
+        self.current_x_back -= 1;
+
+        if self.current_x_back < self.start.x && self.current_y_back > self.start.y {
+            self.current_x_back = self.end.x;
+            self.current_y_back -= 1;
         }
     }
 }
@@ -757,7 +770,7 @@ impl Iterator for PositionIter {
             return None;
         }
 
-        let current = Position::new(self.current_x, self.current_y);
+        let current = Position::new(self.current_x_front, self.current_y_front);
         self.increment();
         Some(current)
     }
@@ -766,6 +779,18 @@ impl Iterator for PositionIter {
         let size = ((self.end.x - self.start.x) * (self.end.y - self.start.y)) as usize;
         // The iterator will always have at least one element, the start position
         (1, Some(size))
+    }
+}
+
+impl DoubleEndedIterator for PositionIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.is_finished() {
+            return None;
+        }
+
+        let current = Position::new(self.current_x_back, self.current_y_back);
+        self.increment_back();
+        Some(current)
     }
 }
 
@@ -1037,6 +1062,34 @@ mod tests {
         ]
             .into_iter()
             .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).collect::<Vec<_>>(), expected))
+    }
+
+    #[test]
+    fn position_iter_rev_works() {
+        [
+            (
+                p!(0, 0),
+                p!(0, 0),
+                vec![p!(0, 0)]
+            ),
+            (
+                p!(-1, -1),
+                p!(1, 1),
+                [(1isize, 1isize), (0, 1), (-1, 1), (1, 0), (0, 0), (-1, 0), (1, -1), (0, -1), (-1, -1)].into_iter().map(From::from).collect()
+            ),
+            (
+                p!(0, 0),
+                p!(2, 0),
+                [(2isize, 0isize), (1, 0), (0, 0)].into_iter().map(From::from).collect()
+            ),
+            (
+                p!(0, 0),
+                p!(0, 2),
+                [(0isize, 2isize), (0, 1), (0, 0)].into_iter().map(From::from).collect()
+            )
+        ]
+            .into_iter()
+            .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).rev().collect::<Vec<_>>(), expected))
     }
 
     #[test]
