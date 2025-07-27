@@ -178,6 +178,11 @@ impl<T> Board<T> {
         (0..self.width).contains(&(pos.x as usize)) && (0..self.height).contains(&(pos.y as usize))
     }
 
+    /// Returns whether the given position is on the border of this board.
+    pub fn pos_on_border(&self, pos: Position) -> bool {
+        pos.x == 0 || pos.x == self.width as isize - 1 || pos.y == 0 || pos.y == self.height as isize - 1
+    }
+
     /// Returns an iterator over all tiles and their positions on the board.
     pub fn tiles_and_positions(&self) -> impl Iterator<Item=(&T, Position)> {
         self.positions()
