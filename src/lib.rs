@@ -724,13 +724,25 @@ pub struct PositionIter {
     current_y_back: isize,
     start: Position,
     end: Position,
+    direction_vec: (isize, isize),
+    finished: bool
 }
 
 impl PositionIter {
     fn new(start: Position, end: Position) -> Self {
-        if start.x > end.x || start.y > end.y {
-            panic!("start must be less or equal to end")
-        }
+        let dir_x = match end.x - start.x {
+            val if val > 0 => 1,
+            val if val < 0 => -1,
+            _ => 0
+        };
+
+        let dir_y = match end.y - start.y {
+            val if val > 0 => 1,
+            val if val < 0 => -1,
+            _ => 0
+        };
+
+        let direction_vec = (dir_x, dir_y);
 
         PositionIter {
             current_x_front: start.x,
@@ -739,29 +751,70 @@ impl PositionIter {
             current_y_back: end.y,
             start,
             end,
+            direction_vec,
+            finished: false
         }
     }
 
     fn is_finished(&self) -> bool {
-        self.current_x_front > self.current_x_back || self.current_y_front > self.current_y_back
+        self.current_x_front == self.current_x_back && self.current_y_front == self.current_y_back
     }
 
-    fn increment(&mut self) {
-        self.current_x_front += 1;
+    fn progress(
+        direction_vec: (isize, isize),
+        current_x: &mut isize,
+        current_y: &mut isize,
+        start: Position,
+        end: Position
+    ) {
+        match direction_vec {
+            (1, 0) => {
+                *current_x += direction_vec.0;
+            },
+            (-1, 0) => {
+                *current_x += direction_vec.0;
+            },
+            (0, 1) => {
+                *current_y += direction_vec.1;
+            },
+            (0, -1) => {
+                *current_y += direction_vec.1;
+            },
+            (1, 1) => {
+                *current_x += direction_vec.0;
 
-        if self.current_x_front > self.end.x && self.current_y_front < self.end.y {
-            self.current_x_front = self.start.x;
-            self.current_y_front += 1;
+                if *current_x > end.x && *current_y < end.y {
+                    *current_x = start.x;
+                    *current_y += direction_vec.1;
+                }
+            },
+            (-1, 1) => {
+                *current_x += direction_vec.0;
+
+                if *current_x < end.x && *current_y < end.y {
+                    *current_x = start.x;
+                    *current_y += direction_vec.1;
+                }
+            },
+            (1, -1) => {
+                *current_x += direction_vec.0;
+
+                if *current_x > end.x && *current_y > end.y {
+                    *current_x = start.x;
+                    *current_y += direction_vec.1;
+                }
+            },
+            (-1, -1) => {
+                *current_x += direction_vec.0;
+
+                if *current_x < end.x && *current_y > end.y {
+                    *current_x = start.x;
+                    *current_y += direction_vec.1;
+                }
+            },
+            _ => {}
         }
-    }
 
-    fn increment_back(&mut self) {
-        self.current_x_back -= 1;
-
-        if self.current_x_back < self.start.x && self.current_y_back > self.start.y {
-            self.current_x_back = self.end.x;
-            self.current_y_back -= 1;
-        }
     }
 }
 
@@ -769,12 +822,19 @@ impl Iterator for PositionIter {
     type Item = Position;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.is_finished() {
+        if self.finished {
             return None;
         }
 
         let current = Position::new(self.current_x_front, self.current_y_front);
-        self.increment();
+        self.finished = self.is_finished();
+        Self::progress(
+            self.direction_vec,
+            &mut self.current_x_front,
+            &mut self.current_y_front,
+            self.start,
+            self.end
+        );
         Some(current)
     }
 
@@ -787,12 +847,23 @@ impl Iterator for PositionIter {
 
 impl DoubleEndedIterator for PositionIter {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if self.is_finished() {
-            return None;
+        if self.finished {
+            return None
         }
 
         let current = Position::new(self.current_x_back, self.current_y_back);
-        self.increment_back();
+        self.finished = self.is_finished();
+        // differences when progressing to the next position backwards:
+        // - the direction vector gets reversed
+        // - we modify the back values for x and y
+        // - we switch start and end, as end is treated as the start and start is treated as the end
+        Self::progress(
+            (-self.direction_vec.0, -self.direction_vec.1),
+            &mut self.current_x_back,
+            &mut self.current_y_back,
+            self.end,
+            self.start,
+        );
         Some(current)
     }
 }
@@ -1042,57 +1113,131 @@ mod tests {
     #[test]
     fn position_iter_works() {
         [
+            // same position -> should return only this position
             (
                 p!(0, 0),
                 p!(0, 0),
-                vec![p!(0, 0)]
+                vec![(0, 0)]
             ),
+            // block top left to bottom right
             (
                 p!(-1, -1),
                 p!(1, 1),
-                [(-1isize, -1isize), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)].into_iter().map(From::from).collect()
+                vec![(-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
             ),
+            // block bottom right to top left
+            (
+                p!(1, 1),
+                p!(-1, -1),
+                vec![(1, 1), (0, 1), (-1, 1), (1, 0), (0, 0), (-1, 0), (1, -1), (0, -1), (-1, -1)]
+            ),
+            // block bottom left to top right
+            (
+                p!(-1, 1),
+                p!(1, -1),
+                vec![(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]
+            ),
+            // block top right to bottom left
+            (
+                p!(1, -1),
+                p!(-1, 1),
+                vec![(1, -1), (0, -1), (-1, -1), (1, 0), (0, 0), (-1, 0), (1, 1), (0, 1), (-1, 1)]
+            ),
+            // line left to right
             (
                 p!(0, 0),
                 p!(2, 0),
-                [(0isize, 0isize), (1, 0), (2, 0)].into_iter().map(From::from).collect()
+                vec![(0, 0), (1, 0), (2, 0)]
             ),
+            // line right to left
+            (
+                p!(2, 0),
+                p!(0, 0),
+                vec![(2, 0), (1, 0), (0, 0)]
+            ),
+            // line top to bottom
             (
                 p!(0, 0),
                 p!(0, 2),
-                [(0isize, 0isize), (0, 1), (0, 2)].into_iter().map(From::from).collect()
+                vec![(0, 0), (0, 1), (0, 2)]
+            ),
+            // line bottom to top
+            (
+                p!(0, 2),
+                p!(0, 0),
+                vec![(0, 2), (0, 1), (0, 0)]
             )
         ]
             .into_iter()
-            .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).collect::<Vec<_>>(), expected))
+            .for_each(|(start, end, expected): (Position, Position, Vec<(isize, isize)>)| {
+                let expected: Vec<Position> = expected.into_iter().map(From::from).collect();
+                assert_eq!(start.iter_to(end).collect::<Vec<_>>(), expected, "{start:?} -> {end:?}")
+            })
     }
 
     #[test]
     fn position_iter_rev_works() {
         [
+            // same position -> should return only this position
             (
                 p!(0, 0),
                 p!(0, 0),
-                vec![p!(0, 0)]
+                vec![(0, 0)]
             ),
+            // block top left to bottom right
             (
                 p!(-1, -1),
                 p!(1, 1),
-                [(1isize, 1isize), (0, 1), (-1, 1), (1, 0), (0, 0), (-1, 0), (1, -1), (0, -1), (-1, -1)].into_iter().map(From::from).collect()
+                vec![(1, 1), (0, 1), (-1, 1), (1, 0), (0, 0), (-1, 0), (1, -1), (0, -1), (-1, -1)],
             ),
+            // block bottom right to top left
+            (
+                p!(1, 1),
+                p!(-1, -1),
+                vec![(-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+            ),
+            // block bottom left to top right
+            (
+                p!(-1, 1),
+                p!(1, -1),
+                vec![(1, -1), (0, -1), (-1, -1), (1, 0), (0, 0), (-1, 0), (1, 1), (0, 1), (-1, 1)]
+            ),
+            // block top right to bottom left
+            (
+                p!(1, -1),
+                p!(-1, 1),
+                vec![(-1, 1), (0, 1), (1, 1), (-1, 0), (0, 0), (1, 0), (-1, -1), (0, -1), (1, -1)]
+            ),
+            // line left to right
             (
                 p!(0, 0),
                 p!(2, 0),
-                [(2isize, 0isize), (1, 0), (0, 0)].into_iter().map(From::from).collect()
+                vec![(2, 0), (1, 0), (0, 0)]
             ),
+            // line right to left
+            (
+                p!(2, 0),
+                p!(0, 0),
+                vec![(0, 0), (1, 0), (2, 0)]
+            ),
+            // line top to bottom
             (
                 p!(0, 0),
                 p!(0, 2),
-                [(0isize, 2isize), (0, 1), (0, 0)].into_iter().map(From::from).collect()
+                vec![(0, 2), (0, 1), (0, 0)]
+            ),
+            // line bottom to top
+            (
+                p!(0, 2),
+                p!(0, 0),
+                vec![(0, 0), (0, 1), (0, 2)]
             )
         ]
             .into_iter()
-            .for_each(|(start, end, expected)| assert_eq!(start.iter_to(end).rev().collect::<Vec<_>>(), expected))
+            .for_each(|(start, end, expected): (Position, Position, Vec<(isize, isize)>)| {
+                let expected: Vec<Position> = expected.into_iter().map(From::from).collect();
+                assert_eq!(start.iter_to(end).rev().collect::<Vec<_>>(), expected, "{start:?} -> {end:?}")
+            })
     }
 
     #[test]
