@@ -1,6 +1,9 @@
-use std::collections::HashSet;
-use crate::{p, Position, PositionIter, PositionPrinter};
+use crate::position_iter::PositionIter;
+use crate::position_printer::PositionPrinter;
 use crate::shape::Shape;
+use crate::p;
+use std::collections::HashSet;
+use crate::position::Position;
 
 /// A 2D board of tiles where the tiles can be access by positions.
 /// Orientation: The position (-inf, -inf) is top left and the position (+inf, +inf) is bottom right.

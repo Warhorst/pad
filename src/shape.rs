@@ -1,5 +1,7 @@
 use std::collections::HashSet;
-use crate::{p, Position, PositionPrinter};
+use crate::p;
+use crate::position::Position;
+use crate::position_printer::PositionPrinter;
 
 /// A shape is a collection of positions which form some figure, image, etc.
 /// The positions are all relative to the origin of the shape, which is top left
