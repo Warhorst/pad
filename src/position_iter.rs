@@ -1,5 +1,6 @@
 use crate::position::Position;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PositionIter {
     current_x_front: isize,
     current_y_front: isize,
@@ -37,6 +38,16 @@ impl PositionIter {
             direction_vec,
             finished: false
         }
+    }
+
+    /// Returns where this position iter starts.
+    pub fn start(&self) -> Position {
+        self.start
+    }
+
+    /// Returns where this position iter ends.
+    pub fn end(&self) -> Position {
+        self.end
     }
 
     fn is_finished(&self) -> bool {

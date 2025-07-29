@@ -37,6 +37,11 @@ impl Direction {
     pub fn cardinal_dirs() -> [Direction; 4] {
         [XP, XM, YP, YM]
     }
+   
+    /// Returns true if this direction is a cardinal direction (increments either x or y), else false.
+    pub fn is_cardinal(&self) -> bool {
+        matches!(self, XP | XM | YP | YM)
+    }
 
     /// Return the opposite direction of this direction
     pub fn opposite(&self) -> Direction {
