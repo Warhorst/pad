@@ -12,6 +12,7 @@ pub mod bounds;
 ///
 /// Example:
 /// ```
+/// use pad::p;
 /// let position = p!(12, -34);
 /// ```
 #[macro_export]

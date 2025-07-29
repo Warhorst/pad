@@ -3,7 +3,10 @@ use crate::position_printer::PositionPrinter;
 use crate::shape::Shape;
 use crate::p;
 use std::collections::HashSet;
+use crate::board::LineError::{EndNotOnBoard, NotALine, StartNotOnBoard};
 use crate::position::Position;
+
+// todo remove the column and row structs and provide the unified "Line" or so
 
 /// A 2D board of tiles where the tiles can be access by positions.
 /// Orientation: The position (-inf, -inf) is top left and the position (+inf, +inf) is bottom right.
@@ -56,13 +59,13 @@ impl<T: From<char>> Board<T> {
     /// Create a board and all special tiles from the given text input
     ///
     /// * `input` - The text input which represents the board. Expected to be a multiline string
-    ///             where every line has the same amount of characters
+    ///   where every line has the same amount of characters
     /// * `special_map` - A mapping closure which might map a given char and position to a special
-    ///                   Tile and a Tile default. The special tile is part of the input, but not
-    ///                   of the actual board, so it gets extracted. If the char at the current
-    ///                   position could be mapped to a special tile, the special case gets stored
-    ///                   and the spot on the board gets replaced by the default tile, specified by
-    ///                   the mapper.
+    ///   Tile and a Tile default. The special tile is part of the input, but not
+    ///   of the actual board, so it gets extracted. If the char at the current
+    ///   position could be mapped to a special tile, the special case gets stored
+    ///   and the spot on the board gets replaced by the default tile, specified by
+    ///   the mapper.
     pub fn board_and_specials_from_str<S>(
         input: &str,
         special_map: impl Fn(char, Position) -> Option<(S, T)>,
@@ -117,7 +120,7 @@ impl<T> Board<T> {
     /// Same as From<&str>, but the tile type does not implement From<char>, so the provided
     /// mapper is used to parse the chars to tiles.
     /// * `input` - The text input which represents the board. Expected to be a multiline string
-    ///             where every line has the same amount of characters
+    ///   where every line has the same amount of characters
     /// * `map` - Mapper which converts a char to at tile
     pub fn from_str_using_mapping(
         input: &str,
@@ -141,12 +144,12 @@ impl<T> Board<T> {
     /// Create a board from given positions where every position is set to one tile
     /// and every absent one is set to another one.
     /// * `positions` - The iterator yielding all positions which will be set to the result of
-    ///                 get_match_tile. Positions returned which are out of bounds are ignored.
+    ///   get_match_tile. Positions returned which are out of bounds are ignored.
     /// * `width` - The width of the board.
     /// * `height` - The width of the board.
     /// * `get_match_tile` - Returns a tile which is set to a position returned by the positions iterator.
     /// * `get_non_match_tile` - Return a tile which is set to a position which was not returned by
-    ///                          the positions iterator, but is still part of the board and must be set.
+    ///   the positions iterator, but is still part of the board and must be set.
     pub fn from_positions_and_bounds(
         positions: impl IntoIterator<Item=Position>,
         width: usize,
@@ -354,51 +357,17 @@ impl<'a, T> Rows<'a, T> {
 }
 
 impl<'a, T> Iterator for Rows<'a, T> {
-    type Item = Row<'a, T>;
+    type Item = Line<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_y == self.board.height {
             None
         } else {
-            let next = Some(Row::new(self.board, self.current_y));
+            let start = p!(0, self.current_y);
+            let end = p!(self.board.width - 1, self.current_y);
+            let next = Some(Line::new(self.board, start, end).unwrap());
             self.current_y += 1;
             next
-        }
-    }
-}
-
-pub struct Row<'a, T> {
-    board: &'a Board<T>,
-    position_iter: PositionIter,
-}
-
-impl<'a, T> Row<'a, T> {
-    fn new(board: &'a Board<T>, current_y: usize) -> Self {
-        let position_iter = p!(0, current_y).iter_to(p!(board.width - 1, current_y));
-
-        Row {
-            board,
-            position_iter,
-        }
-    }
-}
-
-impl<'a, T> Iterator for Row<'a, T> {
-    type Item = (Position, &'a T);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.position_iter.next() {
-            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None
-        }
-    }
-}
-
-impl<'a, T> DoubleEndedIterator for Row<'a, T> {
-    fn next_back(&mut self) -> Option<Self::Item> {
-        match self.position_iter.next_back() {
-            Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None
         }
     }
 }
@@ -418,51 +387,82 @@ impl<'a, T> Columns<'a, T> {
 }
 
 impl<'a, T> Iterator for Columns<'a, T> {
-    type Item = Column<'a, T>;
+    type Item = Line<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current_x == self.board.width {
             None
         } else {
-            let next = Some(Column::new(self.board, self.current_x));
+            let start = p!(self.current_x, 0);
+            let end = p!(self.current_x, self.board.height - 1);
+            let next = Some(Line::new(self.board, start, end).unwrap());
             self.current_x += 1;
             next
         }
     }
 }
 
-pub struct Column<'a, T> {
+/// A horizontal or vertical, even line on a [Board]
+pub struct Line<'a, T> {
     board: &'a Board<T>,
-    position_iter: PositionIter,
+    position_iter: PositionIter
 }
 
-impl<'a, T> Column<'a, T> {
-    fn new(board: &'a Board<T>, current_x: usize) -> Self {
-        Column {
-            board,
-            position_iter: p!(current_x, 0).iter_to(p!(current_x, board.height - 1)),
+impl<'a, T> Line<'a, T> {
+    /// Create a new Line on the given board going from start to end.
+    /// Returns an error if start and end are not an even line or the
+    /// board does not contain both positions.
+    fn new(
+        board: &'a Board<T>,
+        start: Position,
+        end: Position
+    ) -> Result<Self, LineError> {
+        let diff = start - end;
+
+        if !(diff.x == 0 || diff.y == 0) {
+            return Err(NotALine)
         }
+
+        if !board.pos_in_bounds(start) {
+            return Err(StartNotOnBoard)
+        }
+
+        if !board.pos_in_bounds(end) {
+            return Err(EndNotOnBoard)
+        }
+
+        Ok(Line {
+            board,
+            position_iter: start.iter_to(end)
+        })
     }
 }
 
-impl<'a, T> Iterator for Column<'a, T> {
+impl <'a, T> Iterator for Line<'a, T> {
     type Item = (Position, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.position_iter.next() {
             Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None,
+            None => None
         }
     }
 }
 
-impl<'a, T> DoubleEndedIterator for Column<'a, T> {
+impl<'a, T> DoubleEndedIterator for Line<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         match self.position_iter.next_back() {
             Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None,
+            None => None
         }
     }
+}
+
+#[derive(Debug)]
+enum LineError {
+    NotALine,
+    StartNotOnBoard,
+    EndNotOnBoard
 }
 
 #[cfg(test)]
