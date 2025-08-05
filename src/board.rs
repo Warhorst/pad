@@ -1,8 +1,11 @@
 use crate::position_iter::PositionIter;
-use crate::position_printer::PositionPrinter;
+use crate::position_printer::{PositionPrinter, RenderStyle};
 use crate::shape::Shape;
 use crate::p;
 use std::collections::HashSet;
+use std::fmt::{Debug, Display, Formatter};
+use std::str::FromStr;
+use itertools::Itertools;
 use crate::board::LineError::*;
 use crate::direction::Direction;
 use crate::position::Position;
@@ -20,7 +23,7 @@ pub struct Board<T> {
 
 #[cfg(feature = "board_shape_macro")]
 /// Quickly create a Board from a static string input.
-/// Uses indoc internally to handle string formatting.
+/// Uses [indoc] internally to handle string formatting.
 #[macro_export]
 macro_rules! board {
     ($string:expr) => {
@@ -32,13 +35,22 @@ macro_rules! board {
     }
 }
 
-impl<T: From<char>> From<&str> for Board<T> {
+// todo maybe also add TryFrom<&str>
+impl<T> From<&str> for Board<T> where T: From<char> {
     /// Create the board from a text input, where each character represents
     /// a tile.
     /// * `input` - The text input which represents the board. Expected to be a multiline string
     ///   where every line has the same amount of characters
     fn from(input: &str) -> Self {
-        let width = width_from_input(input);
+        Self::from_str(input).expect("Error while parsing the board from input")
+    }
+}
+
+impl<T> FromStr for Board<T> where T: From<char>, {
+    type Err = BoardParseError;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let width = width_from_input(input)?;
         let height = height_from_input(input);
 
         let tiles = input
@@ -46,15 +58,45 @@ impl<T: From<char>> From<&str> for Board<T> {
             .flat_map(|line| line.chars().map(|c| T::from(c)))
             .collect();
 
-        Board {
+        Ok(Board {
             width,
             height,
             tiles,
-        }
+        })
     }
 }
 
-impl<T: From<char>> Board<T> {
+fn width_from_input(input: &str) -> Result<usize, BoardParseError> {
+    let mut width = None;
+
+    for len in input.lines().map(|line| line.len()) {
+        match width {
+            None => width = Some(len),
+            Some(current_len) => if len != current_len {
+                return Err(BoardParseError::LinesHaveDifferentWidths)
+            }
+        }
+    }
+
+    match width {
+        Some(width) => Ok(width),
+        None => Err(BoardParseError::InputIsEmpty)
+    }
+}
+
+fn height_from_input(input: &str) -> usize {
+    input.lines().count()
+}
+
+/// Error that might be returned when a board could not
+/// be parsed from a string input.
+#[derive(Debug)]
+pub enum BoardParseError {
+    InputIsEmpty,
+    LinesHaveDifferentWidths
+}
+
+impl<T> Board<T> where T: From<char> {
     /// Create a board and all special tiles from the given text input
     ///
     /// * `input` - The text input which represents the board. Expected to be a multiline string
@@ -68,8 +110,8 @@ impl<T: From<char>> Board<T> {
     pub fn board_and_specials_from_str<S>(
         input: &str,
         special_map: impl Fn(char, Position) -> Option<(S, T)>,
-    ) -> (Self, Vec<S>) {
-        let width = width_from_input(input);
+    ) -> Result<(Self, Vec<S>), BoardParseError> {
+        let width = width_from_input(input)?;
         let height = height_from_input(input);
 
         let mut tiles = Vec::with_capacity(width * height);
@@ -86,14 +128,14 @@ impl<T: From<char>> Board<T> {
                 None => tiles.push(T::from(c))
             }));
 
-        (
+        Ok((
             Board {
                 width,
                 height,
                 tiles,
             },
             specials
-        )
+        ))
     }
 }
 
@@ -124,8 +166,8 @@ impl<T> Board<T> {
     pub fn from_str_using_mapping(
         input: &str,
         map: impl Fn(char) -> T,
-    ) -> Self {
-        let width = width_from_input(input);
+    ) -> Result<Self, BoardParseError> {
+        let width = width_from_input(input)?;
         let height = height_from_input(input);
 
         let tiles = input
@@ -133,11 +175,11 @@ impl<T> Board<T> {
             .flat_map(|line| line.chars().map(|c| map(c)))
             .collect();
 
-        Board {
+        Ok(Board {
             width,
             height,
             tiles,
-        }
+        })
     }
 
     /// Create a board from given positions where every position is set to one tile
@@ -320,7 +362,7 @@ impl<T> Board<T> {
     pub fn print_with_mapping(&self, map: impl Fn(&T) -> char) {
         PositionPrinter::new()
             .draw_axis(false)
-            .y_is_top(true)
+            .render_style(RenderStyle::Screen)
             .print_with_mapping(self.positions(), |pos| match self.get_tile(pos) {
                 Some(t) => map(t),
                 None => ' '
@@ -328,10 +370,7 @@ impl<T> Board<T> {
     }
 }
 
-impl<T> Board<T>
-where
-    T: Eq + PartialEq,
-{
+impl<T> Board<T> where T: Eq + PartialEq {
     /// Tells if the board contains the given shape.
     /// * `shape` - The shape which is checked if it is on the board
     /// * `shape_tile` - The tile which might form the shape
@@ -366,7 +405,7 @@ where
     pub fn print_occurrences_of_tile(&self, tile: T) {
         PositionPrinter::new()
             .draw_axis(false)
-            .y_is_top(true)
+            .render_style(RenderStyle::Screen)
             .print(self.tiles_and_positions().filter_map(|(t, p)| match tile == *t {
                     true => Some(p),
                     false => None
@@ -375,28 +414,12 @@ where
     }
 }
 
-impl<T> Board<T>
-where
-    T: Into<char> + Copy,
-{
+impl<T> Board<T> where for<'a> &'a T: Into<char>, {
     /// Print the board to the console, using the Into<char> implementation of the tile
     /// to represent it.
     pub fn print(&self) {
-        self.print_with_mapping(|t| (*t).into())
+        self.print_with_mapping(|t| t.into())
     }
-}
-
-fn width_from_input(input: &str) -> usize {
-    input
-        .lines()
-        .next()
-        .expect("The input must contain at least one line")
-        .chars()
-        .count()
-}
-
-fn height_from_input(input: &str) -> usize {
-    input.lines().count()
 }
 
 pub struct Rows<'a, T> {
@@ -535,6 +558,35 @@ pub enum LineError {
     NotALine,
     StartNotOnBoard,
     EndNotOnBoard
+}
+
+impl <T> Display for Board<T> where for<'a> &'a T: Into<char> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let board_string = PositionPrinter::new()
+            .draw_axis(false)
+            .render_style(RenderStyle::Screen)
+            .to_string(&self.positions().collect(), |pos| self.get_tile(pos).unwrap().into());
+
+        write!(f, "{board_string}")
+    }
+}
+
+impl <T> Debug for Board<T> where for<'a> &'a T: Into<char> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Width: {}", self.width)?;
+        writeln!(f, "Height: {}", self.height)?;
+        let positions_and_tiles_string = self
+            .tiles_and_positions()
+            .map(|(t, pos)| format!("({}, {}) : {}", pos.x, pos.y, t.into()))
+            .join("\n");
+        write!(f, "{positions_and_tiles_string}")
+    }
+}
+
+impl<T> PartialEq for Board<T> where T: PartialEq {
+    fn eq(&self, other: &Self) -> bool {
+        self.width == other.width && self.height == other.height && self.tiles == other.tiles
+    }
 }
 
 #[cfg(test)]
