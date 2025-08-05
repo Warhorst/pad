@@ -157,6 +157,47 @@ impl<T> Board<T> {
             None => Err(())
         }
     }
+
+    /// Return the tile at the given index. The index is the number of the tile
+    /// when going from the top left position in the board (index 0) to the right most
+    /// position, starting at the left most position of the next row until the position
+    /// in the bottom right is reached. For example, see the following board:
+    ///
+    /// ```txt
+    /// ....
+    /// ..X.
+    /// ....
+    /// ```
+    ///
+    /// The position (2, 1) is set to 'X', while the other positions are '.'. The position
+    /// with 'X' has the index 6 when going from top left to bottom right. See the board with indexes below the positions:
+    ///
+    /// ```txt
+    /// . . . .
+    /// 0 1 2 3
+    /// . . X .
+    /// 4 5 6 7
+    /// . . . .
+    /// 8 9 1011
+    /// ```
+    ///
+    /// Will return [None] if the index is not part of the board.
+    pub fn get_tile_at_index(&self, index: usize) -> Option<&T> {
+        self.tiles.get(index)
+    }
+
+    /// Mutable version of [Board::get_tile_at_index]
+    pub fn get_tile_mut_at_index(&mut self, index: usize) -> Option<&mut T> {
+        self.tiles.get_mut(index)
+    }
+
+    /// Sets the tile at the given index to the given tile. See [Board::get_tile_at_index] for
+    /// the indexing rules.
+    /// Returns an [Err] if the index is not part of the board.
+    pub fn set_tile_at_index(&mut self, index: usize, tile: T) -> Result<(), ()> {
+        *self.get_tile_mut_at_index(index).ok_or(())? = tile;
+        Ok(())
+    }
 }
 
 impl<T> Board<T> where T: Eq + PartialEq {
@@ -222,6 +263,41 @@ impl<T> PartialEq for Board<T> where T: PartialEq {
 
 #[cfg(test)]
 mod tests {
+    use crate::board::Board;
+
+    #[test]
+    fn get_tile_at_index_works() {
+        let board_string = "....\n..X.\n....";
+        let board = Board::<char>::from(board_string);
+
+        assert_eq!(board.get_tile_at_index(0), Some(&'.'));
+        assert_eq!(board.get_tile_at_index(6), Some(&'X'));
+        assert_eq!(board.get_tile_at_index(12), None);
+    }
+
+    #[test]
+    fn get_tile_mut_at_index_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        assert_eq!(board.get_tile_mut_at_index(0), Some(&mut '.'));
+        assert_eq!(board.get_tile_mut_at_index(6), Some(&mut 'X'));
+        assert_eq!(board.get_tile_mut_at_index(12), None);
+    }
+
+    #[test]
+    fn set_tile_at_index_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        assert_eq!(board.set_tile_at_index(0, 'A'), Ok(()));
+        assert_eq!(board, Board::from("A...\n..X.\n...."));
+        assert_eq!(board.set_tile_at_index(6, 'B'), Ok(()));
+        assert_eq!(board, Board::from("A...\n..B.\n...."));
+        assert_eq!(board.set_tile_at_index(12, 'C'), Err(()));
+        assert_eq!(board, Board::from("A...\n..B.\n...."), "the board must be unchanged");
+    }
+
     #[cfg(feature = "board_shape_macro")]
     #[test]
     fn board_macro_works() {
