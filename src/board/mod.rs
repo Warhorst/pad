@@ -7,7 +7,6 @@ use crate::position::Position;
 use crate::position_iter::PositionIter;
 use crate::position_printer::{PositionPrinter, RenderStyle};
 use crate::shape::Shape;
-use itertools::Itertools;
 use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -210,13 +209,8 @@ impl <T> Display for Board<T> where T: Into<char> + Clone {
 
 impl<T> Debug for Board<T> where T: Into<char> + Clone {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Width: {}", self.width)?;
-        writeln!(f, "Height: {}", self.height)?;
-        let positions_and_tiles_string = self
-            .tiles_and_positions()
-            .map(|(t, pos)| format!("({}, {}) : {}", pos.x, pos.y, t.clone().into()))
-            .join("\n");
-        write!(f, "{positions_and_tiles_string}")
+        writeln!(f, "Width: {}, Height: {}", self.width, self.height)?;
+        write!(f, "{self}")
     }
 }
 
