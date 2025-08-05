@@ -192,24 +192,29 @@ impl<T> Board<T> where T: Eq + PartialEq {
     }
 }
 
-impl <T> Display for Board<T> where for<'a> &'a T: Into<char> {
+impl <T> Display for Board<T> where T: Into<char> + Clone {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let board_string = PositionPrinter::new()
             .draw_axis(false)
             .render_style(RenderStyle::Screen)
-            .to_string(&self.positions().collect(), |pos| self.get_tile(pos).unwrap().into());
+            .to_string(&self.positions().collect(), |pos| self.get_tile(pos).unwrap().clone().into());
 
         write!(f, "{board_string}")
     }
 }
 
-impl <T> Debug for Board<T> where for<'a> &'a T: Into<char> {
+// todo when https://doc.rust-lang.org/beta/unstable-book/language-features/specialization.html is stabilized,
+//  add an implementation for types whose reference implements Into<char>, like this:
+//  impl <T> Debug for Board<T> where for<'a> &'a T: Into<char>
+//  The same is true for the Display implementation
+
+impl<T> Debug for Board<T> where T: Into<char> + Clone {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Width: {}", self.width)?;
         writeln!(f, "Height: {}", self.height)?;
         let positions_and_tiles_string = self
             .tiles_and_positions()
-            .map(|(t, pos)| format!("({}, {}) : {}", pos.x, pos.y, t.into()))
+            .map(|(t, pos)| format!("({}, {}) : {}", pos.x, pos.y, t.clone().into()))
             .join("\n");
         write!(f, "{positions_and_tiles_string}")
     }
