@@ -92,6 +92,11 @@ impl<T> Board<T> {
         self.tiles.len()
     }
 
+    /// Returns true if the board has no tiles
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns whether the given position is in the bounds of this board.
     pub fn pos_in_bounds(&self, pos: Position) -> bool {
         (0..self.width).contains(&(pos.x as usize)) && (0..self.height).contains(&(pos.y as usize))

@@ -8,12 +8,12 @@ use crate::position_iter::PositionIter;
 
 impl<T> Board<T> {
     /// Return an iterator over all rows in the board, from y = 0 to y = height (top to bottom).
-    pub fn rows(&self) -> Rows<T> {
+    pub fn rows(&self) -> Rows<'_, T> {
         Rows::new(self)
     }
 
     /// Return an iterator over all columns in the board, from x = 0 to x = width (left to right)
-    pub fn columns(&self) -> Columns<T> {
+    pub fn columns(&self) -> Columns<'_, T> {
         Columns::new(self)
     }
 
@@ -37,7 +37,7 @@ impl<T> Board<T> {
         start: Position,
         dir: Direction,
         len: usize
-    ) -> Result<Line<T>, LineError> {
+    ) -> Result<Line<'_, T>, LineError> {
         let end = if dir.is_cardinal() {
             start.position_in_direction(dir, len)
         } else {
@@ -65,7 +65,7 @@ impl<T> Board<T> {
         &self,
         start: Position,
         dir: Direction
-    ) -> Result<Line<T>, LineError> {
+    ) -> Result<Line<'_, T>, LineError> {
         use Direction::*;
         let end = match dir {
             XP => p!(self.width - 1, start.y),
