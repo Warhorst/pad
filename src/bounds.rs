@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 use crate::position::Position;
 
 /// Describes the value bounds a position can have.
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 pub struct Bounds {
     pub min_x: isize,
     pub min_y: isize,

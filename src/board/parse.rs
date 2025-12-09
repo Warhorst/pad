@@ -1,7 +1,7 @@
 //! Contains methods to parse a board from a string input.
 
 use std::str::FromStr;
-use crate::board::Board;
+use crate::board::{bounds_from_origin_and_dimension, Board};
 use crate::p;
 use crate::position::Position;
 
@@ -21,6 +21,7 @@ impl<T> FromStr for Board<T> where T: From<char>, {
             width,
             height,
             tiles,
+            bounds: bounds_from_origin_and_dimension(p!(0, 0), width, height)
         })
     }
 }
@@ -50,13 +51,14 @@ impl<T> Board<T> {
 
         let tiles = input
             .lines()
-            .flat_map(|line| line.chars().map(|c| map(c)))
+            .flat_map(|line| line.chars().map(&map))
             .collect();
 
         Ok(Board {
             width,
             height,
             tiles,
+            bounds: bounds_from_origin_and_dimension(p!(0, 0), width, height)
         })
     }
 }
@@ -98,6 +100,7 @@ impl<T> Board<T> where T: From<char> {
                 width,
                 height,
                 tiles,
+                bounds: bounds_from_origin_and_dimension(p!(0, 0), width, height)
             },
             specials
         ))
