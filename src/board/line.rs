@@ -1,6 +1,9 @@
 //! Contains methods to create [Line]s on a [Board].
 
+use thiserror::Error;
+
 use crate::board::Board;
+use crate::bounds::Bounds;
 use crate::direction::Direction;
 use crate::p;
 use crate::position::Position;
@@ -36,12 +39,12 @@ impl<T> Board<T> {
         &self,
         start: Position,
         dir: Direction,
-        len: usize
+        len: usize,
     ) -> Result<Line<'_, T>, LineError> {
         let end = if dir.is_cardinal() {
             start.position_in_direction(dir, len)
         } else {
-            return Err(LineError::NotALine)
+            return Err(LineError::DirectionNotCardinal(dir));
         };
 
         Line::new(self, start, end)
@@ -64,7 +67,7 @@ impl<T> Board<T> {
     pub fn line_to_border(
         &self,
         start: Position,
-        dir: Direction
+        dir: Direction,
     ) -> Result<Line<'_, T>, LineError> {
         use Direction::*;
         let end = match dir {
@@ -72,10 +75,42 @@ impl<T> Board<T> {
             XM => p!(0, start.y),
             YP => p!(start.x, self.height - 1),
             YM => p!(start.x, 0),
-            _ => return Err(LineError::NotALine)
+            _ => return Err(LineError::DirectionNotCardinal(dir)),
         };
 
         Line::new(self, start, end)
+    }
+
+    /// Return the row at the given index. The line goes from the lowest x value to the highest.
+    ///
+    /// Might return an error if the given index is out of bounds.
+    pub fn row(
+        &self,
+        row_index: usize,
+    ) -> Result<Line<'_, T>, LineError> {
+        let start = p!(0, row_index);
+
+        if self.pos_in_bounds(start) {
+            self.line_to_border(start, Direction::XP)
+        } else {
+            Err(LineError::RowIndexOutOfBounds(row_index, self.bounds))
+        }
+    }
+
+    /// Return the column at the given index. The line goes from the lowest y value to the highest.
+    ///
+    /// Might return an error if the given index is out of bounds.
+    pub fn column(
+        &self,
+        column_index: usize,
+    ) -> Result<Line<'_, T>, LineError> {
+        let start = p!(column_index, 0);
+
+        if self.pos_in_bounds(start) {
+            self.line_to_border(start, Direction::YP)
+        } else {
+            Err(LineError::ColumnIndexOutOfBounds(column_index, self.bounds))
+        }
     }
 }
 
@@ -145,7 +180,7 @@ impl<'a, T> Iterator for Columns<'a, T> {
 /// from its start to end
 pub struct Line<'a, T> {
     board: &'a Board<T>,
-    position_iter: PositionIter
+    position_iter: PositionIter,
 }
 
 impl<'a, T> Line<'a, T> {
@@ -155,25 +190,25 @@ impl<'a, T> Line<'a, T> {
     fn new(
         board: &'a Board<T>,
         start: Position,
-        end: Position
+        end: Position,
     ) -> Result<Self, LineError> {
         let diff = start - end;
 
         if !(diff.x == 0 || diff.y == 0) {
-            return Err(LineError::NotALine)
+            return Err(LineError::PositionsDontFormLine(start, end));
         }
 
         if !board.pos_in_bounds(start) {
-            return Err(LineError::StartNotOnBoard)
+            return Err(LineError::StartNotOnBoard(start, board.bounds));
         }
 
         if !board.pos_in_bounds(end) {
-            return Err(LineError::EndNotOnBoard)
+            return Err(LineError::EndNotOnBoard(end, board.bounds));
         }
 
         Ok(Line {
             board,
-            position_iter: start.iter_to(end)
+            position_iter: start.iter_to(end),
         })
     }
 
@@ -188,13 +223,13 @@ impl<'a, T> Line<'a, T> {
     }
 }
 
-impl <'a, T> Iterator for Line<'a, T> {
+impl<'a, T> Iterator for Line<'a, T> {
     type Item = (Position, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.position_iter.next() {
             Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None
+            None => None,
         }
     }
 }
@@ -203,23 +238,37 @@ impl<'a, T> DoubleEndedIterator for Line<'a, T> {
     fn next_back(&mut self) -> Option<Self::Item> {
         match self.position_iter.next_back() {
             Some(pos) => Some((pos, self.board.get_tile(pos)?)),
-            None => None
+            None => None,
         }
     }
 }
 
+// todo implement double ended iterator also for Rows and Columns
+
 /// An error that might occur when attempting to create a line
 /// on a board.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub enum LineError {
-    NotALine,
-    StartNotOnBoard,
-    EndNotOnBoard
+    #[error("The given direction '{0:?}' is not cardinal and therefore cannot create a line.")]
+    DirectionNotCardinal(Direction),
+    #[error(
+        "The given positions '{0:?}' and '{0:?}' don't form a line. The x or y coordinates must be equal."
+    )]
+    PositionsDontFormLine(Position, Position),
+    #[error("The given line start position '{0:?}' is out of bounds ({1:?}).")]
+    StartNotOnBoard(Position, Bounds),
+    #[error("The given line end position '{0:?}' is out of bounds ({1:?}).")]
+    EndNotOnBoard(Position, Bounds),
+    #[error("The given row index '{0}' is out of bounds ({1:?}).")]
+    RowIndexOutOfBounds(usize, Bounds),
+    #[error("The given column index '{0}' is out of bounds ({1:?}).")]
+    ColumnIndexOutOfBounds(usize, Bounds),
 }
 
 #[cfg(test)]
 mod tests {
     use crate::board::Board;
+    use crate::board::line::{Line, LineError};
     use crate::direction::Direction;
     use crate::direction::Direction::{XM, XMYM, XMYP, XP, XPYM, XPYP, YM, YP};
     use crate::p;
@@ -250,20 +299,26 @@ mod tests {
             (XPYP, 0, None),
             (XPYM, 0, None),
             (XMYP, 0, None),
-            (XMYM, 0, None)
+            (XMYM, 0, None),
         ]
-            .into_iter()
-            .for_each(|(dir, len, expected_end): (Direction, usize, Option<Position>)| {
+        .into_iter()
+        .for_each(
+            |(dir, len, expected_end): (Direction, usize, Option<Position>)| {
                 let line_res = board.line_in_dir(start, dir, len);
 
                 match expected_end {
                     Some(end) => {
                         assert!(line_res.is_ok());
-                        assert_eq!(line_res.unwrap().end(), end, "{start:?} in direction {dir:?} with len {len}")
+                        assert_eq!(
+                            line_res.unwrap().end(),
+                            end,
+                            "{start:?} in direction {dir:?} with len {len}"
+                        )
                     }
-                    None => assert!(line_res.is_err())
+                    None => assert!(line_res.is_err()),
                 }
-            });
+            },
+        );
     }
 
     #[test]
@@ -287,19 +342,75 @@ mod tests {
             (XPYP, None),
             (XPYM, None),
             (XMYP, None),
-            (XMYM, None)
+            (XMYM, None),
         ]
-            .into_iter()
-            .for_each(|(dir, expected_end): (Direction, Option<Position>)| {
-                let line_res = board.line_to_border(start, dir, );
+        .into_iter()
+        .for_each(|(dir, expected_end): (Direction, Option<Position>)| {
+            let line_res = board.line_to_border(start, dir);
 
-                match expected_end {
-                    Some(end) => {
-                        assert!(line_res.is_ok());
-                        assert_eq!(line_res.unwrap().end(), end, "{start:?} to border in direction {dir:?}")
-                    }
-                    None => assert!(line_res.is_err())
+            match expected_end {
+                Some(end) => {
+                    assert!(line_res.is_ok());
+                    assert_eq!(
+                        line_res.unwrap().end(),
+                        end,
+                        "{start:?} to border in direction {dir:?}"
+                    )
                 }
-            });
+                None => assert!(line_res.is_err()),
+            }
+        });
+    }
+
+    #[test]
+    fn row_works() {
+        let board = Board::new(5, 5, || 0);
+
+        let row = board.row(2).unwrap().collect::<Vec<_>>();
+        assert_eq!(
+            &row,
+            &[
+                (p!(0, 2), &0),
+                (p!(1, 2), &0),
+                (p!(2, 2), &0),
+                (p!(3, 2), &0),
+                (p!(4, 2), &0),
+            ]
+        );
+        assert_eq!(
+            get_error(board.row(5)),
+            LineError::RowIndexOutOfBounds(5, board.bounds)
+        );
+    }
+
+    #[test]
+    fn column_works() {
+        let board = Board::new(5, 5, || 0);
+
+        let column = board.column(2).unwrap().collect::<Vec<_>>();
+        assert_eq!(
+            &column,
+            &[
+                (p!(2, 0), &0),
+                (p!(2, 1), &0),
+                (p!(2, 2), &0),
+                (p!(2, 3), &0),
+                (p!(2, 4), &0),
+            ]
+        );
+        assert_eq!(
+            get_error(board.column(5)),
+            LineError::ColumnIndexOutOfBounds(5, board.bounds)
+        );
+    }
+
+    fn get_error<T>(res: Result<Line<'_, T>, LineError>) -> LineError {
+        // Needed because the stupid unwrap_err requires Debug for the value.
+
+        if let Err(e) = res {
+            e
+        } else {
+            panic!("was line")
+        }
     }
 }
