@@ -12,6 +12,7 @@ use crate::position_printer::{PositionPrinter, RenderStyle};
 use crate::shape::Shape;
 use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::{Index, IndexMut};
 
 /// A 2D board of tiles where the tiles can be access by positions.
 /// Orientation: The position (-inf, -inf) is top left and the position (+inf, +inf) is bottom right.
@@ -138,10 +139,13 @@ impl<T> Board<T> {
 
     /// Return a reference to the tile on the given position.
     /// Might return None if the position is out of bounds.
+    ///
+    /// For an unchecked access, use the [Index] implementation.
     pub fn get_tile(
         &self,
-        pos: Position,
+        pos: impl Into<Position>,
     ) -> Option<&T> {
+        let pos = pos.into();
         match self.pos_in_bounds(pos) {
             true => self.tiles.get(pos.y as usize * self.width + pos.x as usize),
             false => None,
@@ -150,10 +154,13 @@ impl<T> Board<T> {
 
     /// Return a mutable reference to the tile on the given position.
     /// Might return None if the position is out of bounds.
+    ///
+    /// For an unchecked access, use the [IndexMut] implementation.
     pub fn get_tile_mut(
         &mut self,
-        pos: Position,
+        pos: impl Into<Position>,
     ) -> Option<&mut T> {
+        let pos = pos.into();
         match self.pos_in_bounds(pos) {
             true => self
                 .tiles
@@ -281,6 +288,34 @@ where
     }
 }
 
+impl<T, Idx> Index<Idx> for Board<T>
+where
+    Idx: Into<Position>,
+{
+    type Output = T;
+
+    fn index(
+        &self,
+        index: Idx,
+    ) -> &Self::Output {
+        self.get_tile(index)
+            .expect("The position must be in bounds.")
+    }
+}
+
+impl<T, Idx> IndexMut<Idx> for Board<T>
+where
+    Idx: Into<Position>,
+{
+    fn index_mut(
+        &mut self,
+        index: Idx,
+    ) -> &mut Self::Output {
+        self.get_tile_mut(index)
+            .expect("The position must be in bounds.")
+    }
+}
+
 impl<T> Display for Board<T>
 where
     T: Into<char> + Clone,
@@ -354,7 +389,10 @@ pub enum BoardError {
 
 #[cfg(test)]
 mod tests {
-    use crate::{board::{Board, BoardError}, p};
+    use crate::{
+        board::{Board, BoardError},
+        p,
+    };
 
     #[test]
     fn set_tile_works() {
@@ -362,12 +400,69 @@ mod tests {
         let mut board = Board::<char>::from(board_string);
 
         assert_eq!(board.set_tile(p!(0, 1), 'A'), Ok(()));
-        assert_eq!(board.set_tile(p!(3, 3), 'B'), Err(BoardError::PositionOutOfBounds(board.bounds, p!(3, 3))));
+        assert_eq!(
+            board.set_tile(p!(3, 3), 'B'),
+            Err(BoardError::PositionOutOfBounds(board.bounds, p!(3, 3)))
+        );
         assert_eq!(
             board,
             Board::from("....\nA.X.\n...."),
             "the board must be unchanged"
         );
+    }
+
+    #[test]
+    fn get_tile_works() {
+        let board_string = "....\n..X.\n....";
+        let board = Board::<char>::from(board_string);
+
+        assert_eq!(Some(&'.'), board.get_tile(p!(0, 0)));
+        assert_eq!(Some(&'X'), board.get_tile(p!(2, 1)));
+        assert_eq!(None, board.get_tile(p!(4, 4)));
+    }
+
+    #[test]
+    fn get_tile_impl_index_works() {
+        let board_string = "....\n..X.\n....";
+        let board = Board::<char>::from(board_string);
+
+        assert_eq!(&'.', &board[p!(0, 0)]);
+        assert_eq!(&'X', &board[p!(2, 1)]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_tile_impl_index_out_of_bounds_works() {
+        let board_string = "....\n..X.\n....";
+        let board = Board::<char>::from(board_string);
+        let _ = &board[p!(4, 4)];
+    }
+
+    #[test]
+    fn get_tile_mut_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        assert_eq!(Some(&mut '.'), board.get_tile_mut(p!(0, 0)));
+        assert_eq!(Some(&mut 'X'), board.get_tile_mut(p!(2, 1)));
+        assert_eq!(None, board.get_tile_mut(p!(4, 4)));
+    }
+
+    #[test]
+    fn get_tile_mut_impl_index_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        assert_eq!(&mut '.', &mut board[p!(0, 0)]);
+        assert_eq!(&mut 'X', &mut board[p!(2, 1)]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_tile_mut_impl_index_out_of_bounds_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+        let _ = &mut board[p!(4, 4)];
     }
 
     #[test]
@@ -399,7 +494,10 @@ mod tests {
         assert_eq!(board, Board::from("A...\n..X.\n...."));
         assert_eq!(board.set_tile_at_index(6, 'B'), Ok(()));
         assert_eq!(board, Board::from("A...\n..B.\n...."));
-        assert_eq!(board.set_tile_at_index(12, 'C'), Err(BoardError::IndexOutOfBounds(board.bounds, 12)));
+        assert_eq!(
+            board.set_tile_at_index(12, 'C'),
+            Err(BoardError::IndexOutOfBounds(board.bounds, 12))
+        );
         assert_eq!(
             board,
             Board::from("A...\n..B.\n...."),
