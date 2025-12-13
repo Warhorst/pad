@@ -1,5 +1,5 @@
-use std::cmp::{max, min};
 use crate::position::Position;
+use std::cmp::{max, min};
 
 /// Describes the value bounds a position can have.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
@@ -26,7 +26,7 @@ impl Bounds {
     }
 
     /// Create bounds by determining them from the given positions
-    pub fn from_positions(positions: impl IntoIterator<Item=Position>) -> Self {
+    pub fn from_positions(positions: impl IntoIterator<Item = Position>) -> Self {
         positions
             .into_iter()
             .fold(Bounds::default(), |mut bounds, item| {
@@ -38,11 +38,27 @@ impl Bounds {
             })
     }
 
-    /// Tells if this Bounds contains the given position
-    pub fn contains_position(&self, pos: Position) -> bool {
-        self.min_x <= pos.x
-            && self.max_x >= pos.x
-            && self.min_y <= pos.y
-            && self.max_y >= pos.y
+    /// Tells if this Bounds contains the given [Position]
+    pub fn contains_position(
+        &self,
+        pos: Position,
+    ) -> bool {
+        self.contains_x(pos.x) && self.contains_y(pos.y)
+    }
+
+    /// Tells if the given x coordinate is in bounds.
+    pub fn contains_x(
+        &self,
+        x: isize,
+    ) -> bool {
+        self.min_x <= x && self.max_x >= x
+    }
+
+    /// Tells if the given y coordinate is in bounds.
+    pub fn contains_y(
+        &self,
+        y: isize,
+    ) -> bool {
+        self.min_y <= y && self.max_y >= y
     }
 }

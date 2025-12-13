@@ -248,6 +248,177 @@ impl<T> Board<T> {
             None => Err(BoardError::IndexOutOfBounds(self.bounds, index)),
         }
     }
+
+    /// Insert a row at the specified row index.
+    ///
+    /// Example:
+    ///
+    /// Given the following board:
+    ///
+    /// X..
+    /// .X.
+    /// ..X
+    ///
+    /// Calling ``board.insert_row(1, ['A', 'A', 'A'])``
+    ///
+    /// will result in
+    ///
+    /// X..
+    /// AAA
+    /// .X.
+    /// ..X
+    ///
+    /// The call will return an error if
+    /// - The index is out of bounds
+    /// - The number of new tiles is not equal to the width of the board
+    pub fn insert_row(
+        &mut self,
+        row_index: usize,
+        tiles: impl IntoIterator<Item = T>,
+    ) -> Result<(), BoardError> {
+        if !self.bounds.contains_y(row_index as isize) {
+            return Err(BoardError::RowOutOfBounds(self.bounds, row_index));
+        }
+
+        let tiles = tiles.into_iter().collect::<Vec<_>>();
+
+        if tiles.len() != self.width {
+            return Err(BoardError::MismatchingRowTiles(self.width, tiles.len()));
+        }
+
+        for (x, t) in (0..self.width).zip(tiles.into_iter()) {
+            let pos = p!(x, row_index);
+            self.tiles.insert(pos.to_index(self.width), t);
+        }
+
+        self.height += 1;
+        self.bounds = bounds_from_origin_and_dimension(p!(0, 0), self.width, self.height);
+
+        Ok(())
+    }
+
+    /// Delete a row at the given row index.
+    /// 
+    /// Example:
+    ///
+    /// Given the following board:
+    ///
+    /// X..
+    /// .X.
+    /// ..X
+    ///
+    /// Calling ``board.delete_row(1)``
+    ///
+    /// will result in
+    ///
+    /// X..
+    /// ..X
+    ///
+    /// The call will return an error if the index is out of bounds.
+    pub fn delete_row(
+        &mut self,
+        row_index: usize,
+    ) -> Result<(), BoardError> {
+        if !self.bounds.contains_y(row_index as isize) {
+            return Err(BoardError::RowOutOfBounds(self.bounds, row_index));
+        }
+
+        for x in (0..self.width).rev() {
+            let pos = p!(x, row_index);
+            self.tiles.remove(pos.to_index(self.width));
+        }
+
+        self.height -= 1;
+        self.bounds = bounds_from_origin_and_dimension(p!(0, 0), self.width, self.height);
+
+        Ok(())
+    }
+
+    /// Insert a column at the specified column index.
+    ///
+    /// Example:
+    ///
+    /// Given the following board:
+    ///
+    /// X..
+    /// .X.
+    /// ..X
+    ///
+    /// Calling ``board.insert_column(1, ['A', 'A', 'A'])``
+    ///
+    /// will result in
+    ///
+    /// XA..
+    /// .AX.
+    /// .A.X
+    ///
+    /// The call will return an error if
+    /// - The index is out of bounds
+    /// - The number of new tiles is not equal to the height of the board
+    pub fn insert_column(
+        &mut self,
+        column_index: usize,
+        tiles: impl IntoIterator<Item = T>,
+    ) -> Result<(), BoardError> {
+        if !self.bounds.contains_x(column_index as isize) {
+            return Err(BoardError::ColumnOutOfBounds(self.bounds, column_index));
+        }
+
+        let tiles = tiles.into_iter().collect::<Vec<_>>();
+
+        if tiles.len() != self.height {
+            return Err(BoardError::MismatchingColumnTiles(self.height, tiles.len()));
+        }
+
+        for (y, t) in (0..self.height).zip(tiles.into_iter()) {
+            let pos = p!(column_index, y);
+            // width + 1, as the width of the board now changed
+            self.tiles.insert(pos.to_index(self.width + 1), t);
+        }
+
+        self.width += 1;
+        self.bounds = bounds_from_origin_and_dimension(p!(0, 0), self.width, self.height);
+
+        Ok(())
+    }
+
+    /// Delete a column at the given column index.
+    /// 
+    /// Example:
+    ///
+    /// Given the following board:
+    ///
+    /// X..
+    /// .X.
+    /// ..X
+    ///
+    /// Calling ``board.delete_column(1)``
+    ///
+    /// will result in
+    ///
+    /// X.
+    /// ..
+    /// .X
+    ///
+    /// The call will return an error if the index is out of bounds.
+    pub fn delete_column(
+        &mut self,
+        column_index: usize,
+    ) -> Result<(), BoardError> {
+        if !self.bounds.contains_x(column_index as isize) {
+            return Err(BoardError::ColumnOutOfBounds(self.bounds, column_index));
+        }
+
+        for y in (0..self.height).rev() {
+            let pos = p!(column_index, y);
+            self.tiles.remove(pos.to_index(self.width));
+        }
+
+        self.width -= 1;
+        self.bounds = bounds_from_origin_and_dimension(p!(0, 0), self.width, self.height);
+
+        Ok(())
+    }
 }
 
 impl<T> Board<T>
@@ -385,6 +556,14 @@ pub enum BoardError {
     PositionOutOfBounds(Bounds, Position),
     #[error("Index {1:?} is out of bounds ({0:?})")]
     IndexOutOfBounds(Bounds, usize),
+    #[error("Row {1:?} is out of bounds ({0:?})")]
+    RowOutOfBounds(Bounds, usize),
+    #[error("Column {1:?} is out of bounds ({0:?})")]
+    ColumnOutOfBounds(Bounds, usize),
+    #[error("{0} tiles are required to insert the row, but {1:?} were provided")]
+    MismatchingRowTiles(usize, usize),
+    #[error("{0} tiles are required to insert the column, but {1:?} were provided")]
+    MismatchingColumnTiles(usize, usize),
 }
 
 #[cfg(test)]
@@ -416,9 +595,9 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let board = Board::<char>::from(board_string);
 
-        assert_eq!(Some(&'.'), board.get_tile(p!(0, 0)));
-        assert_eq!(Some(&'X'), board.get_tile(p!(2, 1)));
-        assert_eq!(None, board.get_tile(p!(4, 4)));
+        assert_eq!(board.get_tile(p!(0, 0)), Some(&'.'));
+        assert_eq!(board.get_tile(p!(2, 1)), Some(&'X'));
+        assert_eq!(board.get_tile(p!(4, 4)), None);
     }
 
     #[test]
@@ -426,8 +605,8 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let board = Board::<char>::from(board_string);
 
-        assert_eq!(&'.', &board[p!(0, 0)]);
-        assert_eq!(&'X', &board[p!(2, 1)]);
+        assert_eq!(&board[p!(0, 0)], &'.');
+        assert_eq!(&board[p!(2, 1)], &'X');
     }
 
     #[test]
@@ -443,9 +622,9 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let mut board = Board::<char>::from(board_string);
 
-        assert_eq!(Some(&mut '.'), board.get_tile_mut(p!(0, 0)));
-        assert_eq!(Some(&mut 'X'), board.get_tile_mut(p!(2, 1)));
-        assert_eq!(None, board.get_tile_mut(p!(4, 4)));
+        assert_eq!(board.get_tile_mut(p!(0, 0)), Some(&mut '.'));
+        assert_eq!(board.get_tile_mut(p!(2, 1)), Some(&mut 'X'));
+        assert_eq!(board.get_tile_mut(p!(4, 4)), None);
     }
 
     #[test]
@@ -453,8 +632,8 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let mut board = Board::<char>::from(board_string);
 
-        assert_eq!(&mut '.', &mut board[p!(0, 0)]);
-        assert_eq!(&mut 'X', &mut board[p!(2, 1)]);
+        assert_eq!(&mut board[p!(0, 0)], &mut '.');
+        assert_eq!(&mut board[p!(2, 1)], &mut 'X');
     }
 
     #[test]
@@ -502,6 +681,74 @@ mod tests {
             board,
             Board::from("A...\n..B.\n...."),
             "the board must be unchanged"
+        );
+    }
+
+    #[test]
+    fn insert_row_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        let res = board.insert_row(1, ['A', 'A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(board, Board::<char>::from("....\nAAAA\n..X.\n...."));
+
+        assert_eq!(
+            board.insert_row(5, ['A', 'A', 'A', 'A']),
+            Err(BoardError::RowOutOfBounds(board.bounds, 5))
+        );
+        assert_eq!(
+            board.insert_row(1, ['A', 'A', 'A', 'A', 'A']),
+            Err(BoardError::MismatchingRowTiles(4, 5))
+        );
+    }
+
+    #[test]
+    fn delete_row_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        let res = board.delete_row(1);
+        assert_eq!(res, Ok(()));
+        assert_eq!(board, Board::<char>::from("....\n...."));
+
+        assert_eq!(
+            board.delete_row(5),
+            Err(BoardError::RowOutOfBounds(board.bounds, 5))
+        );
+    }
+
+    #[test]
+    fn insert_column_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        let res = board.insert_column(1, ['A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(board, Board::<char>::from(".A...\n.A.X.\n.A..."));
+
+        assert_eq!(
+            board.insert_column(5, ['A', 'A', 'A']),
+            Err(BoardError::ColumnOutOfBounds(board.bounds, 5))
+        );
+        assert_eq!(
+            board.insert_column(1, ['A', 'A', 'A', 'A']),
+            Err(BoardError::MismatchingColumnTiles(3, 4))
+        );
+    }
+
+    #[test]
+    fn delete_column_works() {
+        let board_string = "....\n..X.\n....";
+        let mut board = Board::<char>::from(board_string);
+
+        let res = board.delete_column(2);
+        assert_eq!(res, Ok(()));
+        assert_eq!(board, Board::<char>::from("...\n...\n..."));
+
+        assert_eq!(
+            board.delete_column(5),
+            Err(BoardError::ColumnOutOfBounds(board.bounds, 5))
         );
     }
 
