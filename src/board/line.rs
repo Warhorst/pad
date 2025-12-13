@@ -35,6 +35,9 @@ impl<T> Board<T> {
     /// let board = Board::new(5, 5, || 0);
     /// let line = board.line_in_dir(p!(2, 2), Direction::XP, 2).unwrap();
     /// ```
+    ///
+    /// Important: The len means "len away in x / y direction from the start". So a line in Direction
+    /// XP from start (0, 0) with len 2 will go to (2, 0).
     pub fn line_in_dir(
         &self,
         start: Position,
@@ -117,6 +120,7 @@ impl<T> Board<T> {
 pub struct Rows<'a, T> {
     board: &'a Board<T>,
     current_y: usize,
+    current_y_back: usize,
 }
 
 impl<'a, T> Rows<'a, T> {
@@ -124,6 +128,7 @@ impl<'a, T> Rows<'a, T> {
         Rows {
             board,
             current_y: 0,
+            current_y_back: board.height,
         }
     }
 }
@@ -132,13 +137,31 @@ impl<'a, T> Iterator for Rows<'a, T> {
     type Item = Line<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current_y == self.board.height {
+        if self.current_y == self.current_y_back {
             None
         } else {
-            let start = p!(0, self.current_y);
-            let end = p!(self.board.width - 1, self.current_y);
-            let next = Some(Line::new(self.board, start, end).unwrap());
+            let next = Some(
+                self.board
+                    .row(self.current_y)
+                    .expect("y must be in bounds."),
+            );
             self.current_y += 1;
+            next
+        }
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for Rows<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.current_y == self.current_y_back {
+            None
+        } else {
+            let next = Some(
+                self.board
+                    .row(self.current_y_back - 1)
+                    .expect("y must be in bounds."),
+            );
+            self.current_y_back -= 1;
             next
         }
     }
@@ -147,6 +170,7 @@ impl<'a, T> Iterator for Rows<'a, T> {
 pub struct Columns<'a, T> {
     board: &'a Board<T>,
     current_x: usize,
+    current_x_back: usize,
 }
 
 impl<'a, T> Columns<'a, T> {
@@ -154,6 +178,7 @@ impl<'a, T> Columns<'a, T> {
         Columns {
             board,
             current_x: 0,
+            current_x_back: board.width,
         }
     }
 }
@@ -165,10 +190,28 @@ impl<'a, T> Iterator for Columns<'a, T> {
         if self.current_x == self.board.width {
             None
         } else {
-            let start = p!(self.current_x, 0);
-            let end = p!(self.current_x, self.board.height - 1);
-            let next = Some(Line::new(self.board, start, end).unwrap());
+            let next = Some(
+                self.board
+                    .column(self.current_x)
+                    .expect("x must be in bounds."),
+            );
             self.current_x += 1;
+            next
+        }
+    }
+}
+
+impl<'a, T> DoubleEndedIterator for Columns<'a, T> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.current_x == self.current_x_back {
+            None
+        } else {
+            let next = Some(
+                self.board
+                    .column(self.current_x_back - 1)
+                    .expect("x must be in bounds."),
+            );
+            self.current_x_back -= 1;
             next
         }
     }
@@ -363,6 +406,60 @@ mod tests {
     }
 
     #[test]
+    fn line_rev_works() {
+        let board = Board::new(3, 3, || 0);
+
+        let h_line = board.line_in_dir(p!(0, 0), Direction::XP, 2).unwrap();
+        assert_eq!(
+            h_line.rev().collect::<Vec<_>>(),
+            &[(p!(2, 0), &0), (p!(1, 0), &0), (p!(0, 0), &0)]
+        );
+
+        let v_line = board.line_in_dir(p!(0, 0), Direction::YP, 2).unwrap();
+        assert_eq!(
+            v_line.rev().collect::<Vec<_>>(),
+            &[(p!(0, 2), &0), (p!(0, 1), &0), (p!(0, 0), &0)]
+        );
+    }
+
+    #[test]
+    fn rows_works() {
+        let board = Board::new(3, 3, || 0);
+
+        let rows = board.rows().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            rows,
+            &[
+                (p!(0, 0), &0),
+                (p!(1, 0), &0),
+                (p!(2, 0), &0),
+                (p!(0, 1), &0),
+                (p!(1, 1), &0),
+                (p!(2, 1), &0),
+                (p!(0, 2), &0),
+                (p!(1, 2), &0),
+                (p!(2, 2), &0),
+            ]
+        );
+
+        let rows_rev = board.rows().rev().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            rows_rev,
+            &[
+                (p!(0, 2), &0),
+                (p!(1, 2), &0),
+                (p!(2, 2), &0),
+                (p!(0, 1), &0),
+                (p!(1, 1), &0),
+                (p!(2, 1), &0),
+                (p!(0, 0), &0),
+                (p!(1, 0), &0),
+                (p!(2, 0), &0),
+            ]
+        );
+    }
+
+    #[test]
     fn row_works() {
         let board = Board::new(5, 5, || 0);
 
@@ -380,6 +477,43 @@ mod tests {
         assert_eq!(
             get_error(board.row(5)),
             LineError::RowIndexOutOfBounds(5, board.bounds)
+        );
+    }
+
+    #[test]
+    fn columns_works() {
+        let board = Board::new(3, 3, || 0);
+
+        let columns = board.columns().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            columns,
+            &[
+                (p!(0, 0), &0),
+                (p!(0, 1), &0),
+                (p!(0, 2), &0),
+                (p!(1, 0), &0),
+                (p!(1, 1), &0),
+                (p!(1, 2), &0),
+                (p!(2, 0), &0),
+                (p!(2, 1), &0),
+                (p!(2, 2), &0),
+            ]
+        );
+
+        let columns_rev = board.columns().rev().flatten().collect::<Vec<_>>();
+        assert_eq!(
+            columns_rev,
+            &[
+                (p!(2, 0), &0),
+                (p!(2, 1), &0),
+                (p!(2, 2), &0),
+                (p!(1, 0), &0),
+                (p!(1, 1), &0),
+                (p!(1, 2), &0),
+                (p!(0, 0), &0),
+                (p!(0, 1), &0),
+                (p!(0, 2), &0),
+            ]
         );
     }
 

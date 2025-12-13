@@ -170,8 +170,8 @@ impl Position {
     /// steps you need to make to reach the other position.
     pub fn distance_to(&self, other: &Position) -> usize {
         usize::max(
-            (self.x - other.x).abs() as usize,
-            (self.y - other.y).abs() as usize,
+            (self.x - other.x).unsigned_abs(),
+            (self.y - other.y).unsigned_abs(),
         )
     }
 

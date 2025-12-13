@@ -217,6 +217,12 @@ impl PositionPrinter {
     }
 }
 
+impl Default for PositionPrinter {
+    fn default() -> Self {
+        PositionPrinter::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::bounds::Bounds;
