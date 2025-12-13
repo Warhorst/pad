@@ -269,14 +269,14 @@ impl<T> Board<T> {
     /// ..X
     ///
     /// The call will return an error if
-    /// - The index is out of bounds
+    /// - The index is out of bounds (if the index is the board height, the row will be the last row)
     /// - The number of new tiles is not equal to the width of the board
     pub fn insert_row(
         &mut self,
         row_index: usize,
         tiles: impl IntoIterator<Item = T>,
     ) -> Result<(), BoardError> {
-        if !self.bounds.contains_y(row_index as isize) {
+        if !self.bounds.contains_y(row_index as isize) && row_index != self.height {
             return Err(BoardError::RowOutOfBounds(self.bounds, row_index));
         }
 
@@ -298,7 +298,7 @@ impl<T> Board<T> {
     }
 
     /// Delete a row at the given row index.
-    /// 
+    ///
     /// Example:
     ///
     /// Given the following board:
@@ -353,14 +353,14 @@ impl<T> Board<T> {
     /// .A.X
     ///
     /// The call will return an error if
-    /// - The index is out of bounds
+    /// - The index is out of bounds (if the index is the board width, the column will be the last column)
     /// - The number of new tiles is not equal to the height of the board
     pub fn insert_column(
         &mut self,
         column_index: usize,
         tiles: impl IntoIterator<Item = T>,
     ) -> Result<(), BoardError> {
-        if !self.bounds.contains_x(column_index as isize) {
+        if !self.bounds.contains_x(column_index as isize) && column_index != self.width {
             return Err(BoardError::ColumnOutOfBounds(self.bounds, column_index));
         }
 
@@ -383,7 +383,7 @@ impl<T> Board<T> {
     }
 
     /// Delete a column at the given column index.
-    /// 
+    ///
     /// Example:
     ///
     /// Given the following board:
@@ -510,6 +510,20 @@ where
 //  add an implementation for types whose reference implements Into<char>, like this:
 //  impl <T> Debug for Board<T> where for<'a> &'a T: Into<char>
 //  The same is true for the Display implementation
+
+impl<T> Clone for Board<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            width: self.width,
+            height: self.height,
+            bounds: self.bounds,
+            tiles: self.tiles.clone(),
+        }
+    }
+}
 
 impl<T> Debug for Board<T>
 where
@@ -689,10 +703,25 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let mut board = Board::<char>::from(board_string);
 
-        let res = board.insert_row(1, ['A', 'A', 'A', 'A']);
+        // Insert at the start of the board
+        let mut start = board.clone();
+        let res = start.insert_row(0, ['A', 'A', 'A', 'A']);
         assert_eq!(res, Ok(()));
-        assert_eq!(board, Board::<char>::from("....\nAAAA\n..X.\n...."));
+        assert_eq!(start, Board::<char>::from("AAAA\n....\n..X.\n...."));
 
+        // Insert in the middle of the board
+        let mut middle = board.clone();
+        let res = middle.insert_row(1, ['A', 'A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(middle, Board::<char>::from("....\nAAAA\n..X.\n...."));
+
+        // Insert at the end of the board
+        let mut end = board.clone();
+        let res = end.insert_row(end.height, ['A', 'A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(end, Board::<char>::from("....\n..X.\n....\nAAAA"));
+
+        // Potential errors
         assert_eq!(
             board.insert_row(5, ['A', 'A', 'A', 'A']),
             Err(BoardError::RowOutOfBounds(board.bounds, 5))
@@ -723,10 +752,25 @@ mod tests {
         let board_string = "....\n..X.\n....";
         let mut board = Board::<char>::from(board_string);
 
-        let res = board.insert_column(1, ['A', 'A', 'A']);
+        // Insert at the start of the board
+        let mut start = board.clone();
+        let res = start.insert_column(0, ['A', 'A', 'A']);
         assert_eq!(res, Ok(()));
-        assert_eq!(board, Board::<char>::from(".A...\n.A.X.\n.A..."));
+        assert_eq!(start, Board::<char>::from("A....\nA..X.\nA...."));
 
+        // Insert in the middle of the board
+        let mut middle = board.clone();
+        let res = middle.insert_column(1, ['A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(middle, Board::<char>::from(".A...\n.A.X.\n.A..."));
+
+        // Insert at the end of the board
+        let mut end = board.clone();
+        let res = end.insert_column(end.width, ['A', 'A', 'A']);
+        assert_eq!(res, Ok(()));
+        assert_eq!(end, Board::<char>::from("....A\n..X.A\n....A"));
+
+        // Potential errors
         assert_eq!(
             board.insert_column(5, ['A', 'A', 'A']),
             Err(BoardError::ColumnOutOfBounds(board.bounds, 5))
@@ -775,7 +819,7 @@ mod tests {
             }
         }
 
-        impl Into<char> for Tile {
+        impl Into<char> for &Tile {
             fn into(self) -> char {
                 match self {
                     Filled => '#',
