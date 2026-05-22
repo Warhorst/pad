@@ -22,7 +22,10 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn new(x: isize, y: isize) -> Self {
+    pub fn new(
+        x: isize,
+        y: isize,
+    ) -> Self {
         Position { x, y }
     }
 
@@ -48,12 +51,19 @@ impl Position {
     }
 
     /// Return the position in the given direction next to this position
-    pub fn neighbour_in_direction(&self, dir: Direction) -> Position {
+    pub fn neighbour_in_direction(
+        &self,
+        dir: Direction,
+    ) -> Position {
         self.position_in_direction(dir, 1)
     }
 
     /// Return the position in the given direction in the given distance
-    pub fn position_in_direction(&self, dir: Direction, distance: usize) -> Position {
+    pub fn position_in_direction(
+        &self,
+        dir: Direction,
+        distance: usize,
+    ) -> Position {
         let distance = distance as isize;
 
         match dir {
@@ -81,28 +91,37 @@ impl Position {
     ///
     /// The iterator takes every position from left to right and bottom to top. So the first element will be (0,0),
     /// followed by (1,0) until (3,0). Then (0,1), (1,1) and so on until (4,3) was returned
-    pub fn iter_to(&self, other: Position) -> PositionIter {
+    pub fn iter_to(
+        &self,
+        other: Position,
+    ) -> PositionIter {
         PositionIter::new(*self, other)
     }
 
     /// Create a Position from an index. This value might be the index for a 2D-matrix which is stored
     /// in a 1D-array. Requires the width of the matrix.
-    pub fn from_index(index: usize, width: usize) -> Self {
-        Position::from((
-            index % width,
-            index / width,
-        ))
+    pub fn from_index(
+        index: usize,
+        width: usize,
+    ) -> Self {
+        Position::from((index % width, index / width))
     }
 
     /// Creates an index for this position. This value might be the index for a 2D-matrix which is stored
     /// in a 1D-array. Requires the width of the matrix.
-    pub fn to_index(&self, width: usize) -> usize {
+    pub fn to_index(
+        &self,
+        width: usize,
+    ) -> usize {
         self.y as usize * width + self.x as usize
     }
 
     /// Tells if two positions are neighboured in any way.
     /// A position is not neighboured with itself.
-    pub fn is_neighbour_with(&self, other: &Position) -> bool {
+    pub fn is_neighbour_with(
+        &self,
+        other: &Position,
+    ) -> bool {
         if self == other {
             return false;
         }
@@ -115,7 +134,10 @@ impl Position {
 
     /// Tells if two positions are neighboured in cardinal directions
     /// A position is not neighboured with itself.
-    pub fn is_cardinal_neighbour_with(&self, other: &Position) -> bool {
+    pub fn is_cardinal_neighbour_with(
+        &self,
+        other: &Position,
+    ) -> bool {
         let diff = *self - *other;
 
         diff.x.abs() == 1 && diff.y == 0 || diff.x == 0 && diff.y.abs() == 1
@@ -123,7 +145,10 @@ impl Position {
 
     /// Tells if two positions are neighboured in diagonal directions
     /// A position is not neighboured with itself.
-    pub fn is_diagonal_neighbour_with(&self, other: &Position) -> bool {
+    pub fn is_diagonal_neighbour_with(
+        &self,
+        other: &Position,
+    ) -> bool {
         let diff = *self - *other;
 
         diff.x.abs() == 1 && diff.y.abs() == 1
@@ -131,7 +156,10 @@ impl Position {
 
     /// Return the direction the given neighbour is relative to this position.
     /// None is returned if the positions are not neighboured or equals.
-    pub fn get_direction_to_neighbour(&self, other: &Position) -> Option<Direction> {
+    pub fn get_direction_to_neighbour(
+        &self,
+        other: &Position,
+    ) -> Option<Direction> {
         match (other.x - self.x, other.y - self.y) {
             (1, 0) => Some(XP),
             (0, 1) => Some(YP),
@@ -141,12 +169,15 @@ impl Position {
             (1, -1) => Some(XPYM),
             (-1, 1) => Some(XMYP),
             (-1, -1) => Some(XMYM),
-            _ => None
+            _ => None,
         }
     }
 
     /// Calculates the manhattan distance between this position and another one (https://en.wikipedia.org/wiki/Taxicab_geometry)
-    pub fn manhattan_distance(&self, other: &Position) -> f32 {
+    pub fn manhattan_distance(
+        &self,
+        other: &Position,
+    ) -> f32 {
         if self == other {
             return 0.0;
         }
@@ -155,7 +186,10 @@ impl Position {
     }
 
     /// Calculates the euclidean distance between this position and another one (https://en.wikipedia.org/wiki/Euclidean_distance)
-    pub fn euclidean_distance(&self, other: &Position) -> f32 {
+    pub fn euclidean_distance(
+        &self,
+        other: &Position,
+    ) -> f32 {
         if self == other {
             return 0.0;
         }
@@ -168,66 +202,22 @@ impl Position {
     /// Explanation: If the positions correlate to tiles on a board and you can take
     /// steps from one position to a neighboured one, the distance is the minimum amount of
     /// steps you need to make to reach the other position.
-    pub fn distance_to(&self, other: &Position) -> usize {
+    pub fn distance_to(
+        &self,
+        other: &Position,
+    ) -> usize {
         usize::max(
             (self.x - other.x).unsigned_abs(),
             (self.y - other.y).unsigned_abs(),
         )
     }
 
-    /// Converts Vec2 coordinates to a Position.
-    ///
-    /// Use case: The game world is a big plane, which is logically divided in tiles. Every tile has
-    /// the same dimension, and every tile has a unique position. The goal is to get the position
-    /// the given coordinates are in.
-    #[cfg(feature = "bevy")]
-    pub fn from_vec2(coordinates: Vec2, dimension: Vec2) -> Self {
-        let mut x_div = coordinates.x / dimension.x;
-        let mut y_div = coordinates.y / dimension.y;
-
-        if x_div < 0.0 {
-            x_div = x_div.floor()
-        }
-
-        if y_div < 0.0 {
-            y_div = y_div.floor()
-        }
-
-        Position::new(
-            x_div as isize,
-            y_div as isize,
-        )
-    }
-
-    /// Same as from_vec2, but for Vec3 coordinates instead.
-    #[cfg(feature = "bevy")]
-    pub fn from_vec3(coordinates: Vec3, dimension: Vec2) -> Self {
-        Position::from_vec2(coordinates.xy(), dimension)
-    }
-
-    /// Converts this position to Vec2 coordinates.
-    ///
-    /// Use case: The game world is a big plane, which is logically divided in tiles. Every tile has
-    /// the same dimension, and every tile has a unique position. The goal is to get the corner coordinates
-    /// for the tile at this position.
-    #[cfg(feature = "bevy")]
-    pub fn to_vec2(&self, dimension: Vec2) -> Vec2 {
-        Vec2::new(
-            self.x as f32 * dimension.x,
-            self.y as f32 * dimension.y,
-        )
-    }
-
-    /// Same as to_vec2, but for Vec3 coordinates. As the Vec3 also needs a z coordinate, it is provided as
-    /// a parameter.
-    #[cfg(feature = "bevy")]
-    pub fn to_vec3(&self, dimension: Vec2, z: f32) -> Vec3 {
-        Vec3::from((self.to_vec2(dimension), z))
-    }
-
     /// Returns an iterator over all positions in the line between self and goal,
     /// including self and goal. Uses Bresenham's line algorithm.
-    pub fn line_to(&self, goal: Position) -> impl IntoIterator<Item=Position> {
+    pub fn line_to(
+        &self,
+        goal: Position,
+    ) -> impl IntoIterator<Item = Position> {
         // todo slow due to allocations, refactor to iterator
 
         // stolen from wikipedia
@@ -258,7 +248,10 @@ impl Position {
 
     /// Return an iterator over all positions in the circle around self with the given radius.
     /// Uses an adapted version of Bresenham's line algorithm.
-    pub fn circle(&self, radius: usize) -> impl IntoIterator<Item=Position> {
+    pub fn circle(
+        &self,
+        radius: usize,
+    ) -> impl IntoIterator<Item = Position> {
         // todo slow due to allocations, refactor to iterator
 
         // stolen from wikipedia
@@ -305,7 +298,10 @@ impl Position {
 
     /// Return an iterator over all positions in a filled circle around this position
     /// with the given radius.
-    pub fn circle_filled(&self, radius: usize) -> impl IntoIterator<Item=Position> {
+    pub fn circle_filled(
+        &self,
+        radius: usize,
+    ) -> impl IntoIterator<Item = Position> {
         // todo slow due to allocations, refactor to iterator
 
         // source http://fredericgoset.ovh/mathematiques/courbes/en/filled_circle.html
@@ -336,7 +332,10 @@ impl Position {
     }
 
     /// Tells if this position is in the given bounds
-    pub fn in_bounds(&self, bounds: Bounds) -> bool {
+    pub fn in_bounds(
+        &self,
+        bounds: Bounds,
+    ) -> bool {
         bounds.contains_position(*self)
     }
 }
@@ -344,33 +343,39 @@ impl Position {
 impl Add for Position {
     type Output = Position;
 
-    fn add(self, other: Self) -> Self::Output {
-        Position::new(
-            self.x + other.x,
-            self.y + other.y,
-        )
+    fn add(
+        self,
+        other: Self,
+    ) -> Self::Output {
+        Position::new(self.x + other.x, self.y + other.y)
     }
 }
 
 impl Add<(isize, isize)> for Position {
     type Output = Position;
 
-    fn add(self, (x, y): (isize, isize)) -> Self::Output {
-        Position::new(
-            self.x + x,
-            self.y + y,
-        )
+    fn add(
+        self,
+        (x, y): (isize, isize),
+    ) -> Self::Output {
+        Position::new(self.x + x, self.y + y)
     }
 }
 
 impl AddAssign for Position {
-    fn add_assign(&mut self, rhs: Self) {
+    fn add_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         *self = *self + rhs
     }
 }
 
 impl AddAssign<(isize, isize)> for Position {
-    fn add_assign(&mut self, rhs: (isize, isize)) {
+    fn add_assign(
+        &mut self,
+        rhs: (isize, isize),
+    ) {
         *self = *self + rhs
     }
 }
@@ -378,33 +383,39 @@ impl AddAssign<(isize, isize)> for Position {
 impl Sub for Position {
     type Output = Position;
 
-    fn sub(self, other: Self) -> Self::Output {
-        Position::new(
-            self.x - other.x,
-            self.y - other.y,
-        )
+    fn sub(
+        self,
+        other: Self,
+    ) -> Self::Output {
+        Position::new(self.x - other.x, self.y - other.y)
     }
 }
 
 impl Sub<(isize, isize)> for Position {
     type Output = Position;
 
-    fn sub(self, (x, y): (isize, isize)) -> Self::Output {
-        Position::new(
-            self.x - x,
-            self.y - y,
-        )
+    fn sub(
+        self,
+        (x, y): (isize, isize),
+    ) -> Self::Output {
+        Position::new(self.x - x, self.y - y)
     }
 }
 
 impl SubAssign for Position {
-    fn sub_assign(&mut self, rhs: Self) {
+    fn sub_assign(
+        &mut self,
+        rhs: Self,
+    ) {
         *self = *self - rhs
     }
 }
 
 impl SubAssign<(isize, isize)> for Position {
-    fn sub_assign(&mut self, rhs: (isize, isize)) {
+    fn sub_assign(
+        &mut self,
+        rhs: (isize, isize),
+    ) {
         *self = *self - rhs
     }
 }
@@ -412,7 +423,10 @@ impl SubAssign<(isize, isize)> for Position {
 impl Mul<i32> for Position {
     type Output = Position;
 
-    fn mul(self, rhs: i32) -> Self::Output {
+    fn mul(
+        self,
+        rhs: i32,
+    ) -> Self::Output {
         p!(rhs as isize * self.x, rhs as isize * self.y)
     }
 }
@@ -420,7 +434,10 @@ impl Mul<i32> for Position {
 impl Mul<isize> for Position {
     type Output = Position;
 
-    fn mul(self, rhs: isize) -> Self::Output {
+    fn mul(
+        self,
+        rhs: isize,
+    ) -> Self::Output {
         p!(rhs * self.x, rhs * self.y)
     }
 }
@@ -428,7 +445,10 @@ impl Mul<isize> for Position {
 impl Mul<Position> for i32 {
     type Output = Position;
 
-    fn mul(self, rhs: Position) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Position,
+    ) -> Self::Output {
         p!(rhs.x * self as isize, rhs.y * self as isize)
     }
 }
@@ -436,7 +456,10 @@ impl Mul<Position> for i32 {
 impl Mul<Position> for isize {
     type Output = Position;
 
-    fn mul(self, rhs: Position) -> Self::Output {
+    fn mul(
+        self,
+        rhs: Position,
+    ) -> Self::Output {
         p!(rhs.x * self, rhs.y * self)
     }
 }
@@ -463,12 +486,10 @@ impl From<(usize, usize)> for Position {
 
 #[cfg(test)]
 mod tests {
+    use crate::direction::Direction::*;
     use crate::p;
     use crate::position::Position;
     use crate::position_printer::PositionPrinter;
-    use crate::direction::Direction::*;
-    #[cfg(feature = "bevy")]
-    use bevy_math::Vec2;
 
     #[test]
     fn add_position_works() {
@@ -542,7 +563,9 @@ mod tests {
             p!(-1, 1),
             p!(1, -1),
             p!(-1, -1),
-        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+        ]
+        .into_iter()
+        .for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
@@ -551,12 +574,9 @@ mod tests {
 
         let neighbours = pos.cardinal_neighbours();
 
-        [
-            p!(0, 1),
-            p!(0, -1),
-            p!(-1, 0),
-            p!(1, 0),
-        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+        [p!(0, 1), p!(0, -1), p!(-1, 0), p!(1, 0)]
+            .into_iter()
+            .for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
@@ -574,7 +594,9 @@ mod tests {
             (p!(-1, 1), XMYP),
             (p!(1, -1), XPYM),
             (p!(-1, -1), XMYM),
-        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+        ]
+        .into_iter()
+        .for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
@@ -588,7 +610,9 @@ mod tests {
             (p!(-1, 0), XM),
             (p!(0, 1), YP),
             (p!(0, -1), YM),
-        ].into_iter().for_each(|expected| assert!(neighbours.contains(&expected)))
+        ]
+        .into_iter()
+        .for_each(|expected| assert!(neighbours.contains(&expected)))
     }
 
     #[test]
@@ -606,8 +630,10 @@ mod tests {
             (XMYP, p!(-distance, distance)),
             (XMYM, p!(-distance, -distance)),
         ]
-            .into_iter()
-            .for_each(|(dir, expected)| assert_eq!(pos.position_in_direction(dir, distance as usize), expected))
+        .into_iter()
+        .for_each(|(dir, expected)| {
+            assert_eq!(pos.position_in_direction(dir, distance as usize), expected)
+        })
     }
 
     #[test]
@@ -624,18 +650,14 @@ mod tests {
             (XMYP, p!(-1, 1)),
             (XMYM, p!(-1, -1)),
         ]
-            .into_iter()
-            .for_each(|(dir, expected)| assert_eq!(pos.neighbour_in_direction(dir), expected))
+        .into_iter()
+        .for_each(|(dir, expected)| assert_eq!(pos.neighbour_in_direction(dir), expected))
     }
 
     #[test]
     fn from_index_works() {
         let width = 10;
-        [
-            (22, p!(2, 2)),
-            (3, p!(3, 0)),
-            (30, p!(0, 3))
-        ]
+        [(22, p!(2, 2)), (3, p!(3, 0)), (30, p!(0, 3))]
             .into_iter()
             .for_each(|(index, expected)| assert_eq!(Position::from_index(index, width), expected))
     }
@@ -644,11 +666,7 @@ mod tests {
     fn to_index_works() {
         let width = 10;
 
-        [
-            (p!(2, 2), 22),
-            (p!(3, 0), 3),
-            (p!(0, 3), 30),
-        ]
+        [(p!(2, 2), 22), (p!(3, 0), 3), (p!(0, 3), 30)]
             .into_iter()
             .for_each(|(pos, expected)| assert_eq!(pos.to_index(width), expected))
     }
@@ -670,12 +688,14 @@ mod tests {
             (p!(3, 1), false),
             (p!(1, 3), false),
         ]
-            .into_iter()
-            .for_each(|(other, expectation)| assert_eq!(
+        .into_iter()
+        .for_each(|(other, expectation)| {
+            assert_eq!(
                 pos.is_neighbour_with(&other),
                 expectation,
                 "{pos:?}.is_neighbour_with({other:?}) should be {expectation}"
-            ))
+            )
+        })
     }
 
     #[test]
@@ -695,12 +715,14 @@ mod tests {
             (p!(3, 1), false),
             (p!(1, 3), false),
         ]
-            .into_iter()
-            .for_each(|(other, expectation)| assert_eq!(
+        .into_iter()
+        .for_each(|(other, expectation)| {
+            assert_eq!(
                 pos.is_cardinal_neighbour_with(&other),
                 expectation,
                 "{pos:?}.is_cardinal_neighbour_with({other:?}) should be {expectation}"
-            ))
+            )
+        })
     }
 
     #[test]
@@ -720,12 +742,14 @@ mod tests {
             (p!(3, 1), false),
             (p!(1, 3), false),
         ]
-            .into_iter()
-            .for_each(|(other, expectation)| assert_eq!(
+        .into_iter()
+        .for_each(|(other, expectation)| {
+            assert_eq!(
                 pos.is_diagonal_neighbour_with(&other),
                 expectation,
                 "{pos:?}.is_diagonal_neighbour_with({other:?}) should be {expectation}"
-            ))
+            )
+        })
     }
 
     #[test]
@@ -744,48 +768,35 @@ mod tests {
             (p!(4, 4), Some(XMYM)),
             (p!(7, 5), None),
         ]
-            .into_iter()
-            .for_each(|(other, expectation)| assert_eq!(
+        .into_iter()
+        .for_each(|(other, expectation)| {
+            assert_eq!(
                 pos.get_direction_to_neighbour(&other),
                 expectation,
                 "{pos:?}.get_direction_to_neighbour({other:?}) should be {expectation:?}"
-            ))
+            )
+        })
     }
 
     #[test]
     fn distance_to_works() {
         [
-            (p!(0,0), p!(0, 0), 0),
-            (p!(0,0), p!(1, 1), 1),
-            (p!(0,0), p!(3, 1), 3),
-            (p!(0,0), p!(3, 3), 3),
-            (p!(0,0), p!(-3, -3), 3),
+            (p!(0, 0), p!(0, 0), 0),
+            (p!(0, 0), p!(1, 1), 1),
+            (p!(0, 0), p!(3, 1), 3),
+            (p!(0, 0), p!(3, 3), 3),
+            (p!(0, 0), p!(-3, -3), 3),
         ]
-            .into_iter()
-            .for_each(|(a, b, expectation)| assert_eq!(
+        .into_iter()
+        .for_each(|(a, b, expectation)| {
+            assert_eq!(
                 a.distance_to(&b),
                 expectation,
                 "{a:?}.distance_to({b:?}) should be {expectation}"
-            ))
-        ;
+            )
+        });
     }
 
-    #[test]
-    #[cfg(feature = "bevy")]
-    fn from_vec2_works() {
-        let dimension = 32.0;
-
-        let values_and_expectation = [
-            (Vec2::new(0.0, 0.0), Position::new(0, 0)),
-            (Vec2::new(dimension / 2.0, dimension / 2.0), Position::new(0, 0)),
-            (Vec2::new(dimension, dimension), Position::new(1, 1)),
-            (Vec2::new(-dimension / 2.0, -dimension / 2.0), Position::new(-1, -1)),
-        ];
-
-        values_and_expectation
-            .into_iter()
-            .for_each(|(val, expected)| assert_eq!(Position::from_vec2(val, Vec2::splat(dimension)), expected));
-    }
 
     #[test]
     fn line_to_works() {
@@ -808,7 +819,10 @@ mod tests {
         assert_eq!(positions.len(), expected.len());
 
         for pos in expected {
-            assert!(positions.contains(&pos), "expected position not in output: {pos:?}");
+            assert!(
+                positions.contains(&pos),
+                "expected position not in output: {pos:?}"
+            );
         }
     }
 
@@ -849,7 +863,10 @@ mod tests {
         assert_eq!(expected.len(), positions.len());
 
         for pos in expected {
-            assert!(positions.contains(&pos), "expected position not in output: {pos:?}");
+            assert!(
+                positions.contains(&pos),
+                "expected position not in output: {pos:?}"
+            );
         }
     }
 

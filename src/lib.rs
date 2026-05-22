@@ -5,6 +5,8 @@ pub mod direction;
 pub mod position_iter;
 pub mod position_printer;
 pub mod bounds;
+#[cfg(feature = "bevy")]
+pub mod bevy_vec;
 
 /// Provides a quick way to create a Position from a given x and y value.
 /// x and y can be anything that can be converted to an isize and don't need to be of
