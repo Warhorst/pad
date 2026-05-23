@@ -63,7 +63,7 @@ impl Position {
     /// the same dimension, and every tile has a unique position. The goal is to get the corner coordinates
     /// for the tile at this position.
     ///
-    /// This conversion expects the tile sprites coordinates to be the bottom left corner.
+    /// This conversion expects the tile sprites coordinates to be in the center of the sprite.
     pub fn to_vec2(
         &self,
         dimension: Vec2,
